@@ -279,7 +279,9 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (context) => const DashScreen(),
+                builder: (context) => const DashScreen(
+                  currentUser: null,
+                ),
               ),
               (route) => false,
             );

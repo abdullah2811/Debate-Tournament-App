@@ -1,6 +1,6 @@
+import 'package:debate_tournament_app/screens/dash_screen.dart';
 import 'package:debate_tournament_app/screens/login_screen.dart';
 import 'package:debate_tournament_app/screens/register_screen.dart';
-import 'package:debate_tournament_app/screens/tournaments_screen.dart';
 import 'package:flutter/material.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -69,7 +69,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void _continueAsGuest() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const TournamentsScreen(),
+        builder: (context) => const DashScreen(
+          currentUser: null,
+          isRegistered: false,
+        ),
       ),
     );
   }

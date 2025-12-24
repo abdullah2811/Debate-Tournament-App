@@ -1,178 +1,159 @@
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'debate_team.dart';
-import 'debater.dart';
 import 'tournament_segment.dart';
 import 'debate_match.dart';
 
+enum TournamentFormat {
+  asianParliamentary,
+  britishParliamentary,
+  lincolnDouglas,
+  policyDebate,
+  publicForum,
+  studentCongress,
+}
+
 class Tournament {
-  String clubName;
   String tournamentName;
-  String tournamentYear;
+  String tournamentID;
+  String tournamentClubName;
+  String? tournamentLocation;
+  String? tournamentDescription;
+  DateTime tournamentStartingDate;
+  DateTime tournamentEndingDate;
+  int numberOfTeamsInTournament = 0;
+  int? maxTeams;
+  double? prizePool;
+  TournamentFormat tournamentFormat;
   TournamentStage currentSegment;
-  int numberOfTeamsInTournament;
-  List<DebateTeam> teamsInTheTournament;
-  List<DebateMatch> currentMatches;
+  String? createdByUserID;
+  DateTime? createdAt;
+  List<DebateTeam>? teamsInTheTournament;
+  List<DebateMatch>? currentMatches;
 
   Tournament({
-    required this.clubName,
     required this.tournamentName,
-    required this.tournamentYear,
-    this.currentSegment = TournamentStage.preliminary1,
+    required this.tournamentID,
+    required this.tournamentClubName,
+    required this.tournamentStartingDate,
+    required this.tournamentEndingDate,
+    this.tournamentLocation,
+    this.tournamentDescription,
     this.numberOfTeamsInTournament = 0,
-    List<DebateTeam>? teamsInTheTournament,
-    List<DebateMatch>? currentMatches,
-  })  : teamsInTheTournament = teamsInTheTournament ?? [],
-        currentMatches = currentMatches ?? [];
+    this.maxTeams,
+    this.prizePool,
+    this.tournamentFormat = TournamentFormat.britishParliamentary,
+    this.currentSegment = TournamentStage.preliminary1,
+    this.createdByUserID,
+    this.createdAt,
+    this.teamsInTheTournament,
+    this.currentMatches,
+  });
 
-  static Future<void> addTeam(
-    Tournament tournament, {
-    Function(String)? onSuccess,
-    Function(String)? onError,
-    Future<String> Function(String)? inputCallback,
-  }) async {
+  CollectionReference<Map<String, dynamic>> get _tournamentsCollection =>
+      FirebaseFirestore.instance.collection('tournaments');
+
+  // Save tournament to Firestore
+  Future<void> saveTournament() async {
     try {
-      String teamName;
-      if (inputCallback != null) {
-        teamName = await inputCallback("Enter team name:");
-      } else {
-        print("Enter team name:");
-        teamName = stdin.readLineSync() ?? '';
-      }
-
-      List<Debater> members = [];
-      for (int i = 1; i <= 3; i++) {
-        String name, userID;
-        if (inputCallback != null) {
-          name = await inputCallback("Enter details for Debater $i - Name:");
-          userID = await inputCallback("User ID:");
-        } else {
-          print("Enter details for Debater $i:");
-          print("Name:");
-          name = stdin.readLineSync() ?? '';
-          print("User ID:");
-          userID = stdin.readLineSync() ?? '';
-        }
-        members.add(Debater(debaterID: i, name: name, userID: userID));
-      }
-
-      int teamID = tournament.teamsInTheTournament.length + 1;
-      DebateTeam team = DebateTeam(
-        teamID: teamID,
-        teamName: teamName,
-        teamMembers: members,
-      );
-
-      tournament.teamsInTheTournament.add(team);
-
-      if (onSuccess != null) {
-        onSuccess("Team added successfully.");
-      } else {
-        print("Team added successfully. Press any key to continue.");
-      }
+      await _tournamentsCollection.doc(tournamentID).set(toJson());
     } catch (e) {
-      if (onError != null) {
-        onError("Error adding team: $e");
-      } else {
-        print("Error adding team: $e");
-      }
+      throw Exception('Error saving tournament: $e');
     }
   }
 
-  static Future<void> removeTeam(
-    Tournament tournament, {
-    Function(String)? onSuccess,
-    Function(String)? onError,
-    Future<String> Function(String)? inputCallback,
-  }) async {
+  // Update tournament in Firestore
+  Future<void> updateTournament() async {
     try {
-      String name;
-      if (inputCallback != null) {
-        name = await inputCallback("Enter team name to remove:");
-      } else {
-        print("Enter team name to remove:");
-        name = stdin.readLineSync() ?? '';
-      }
-
-      DebateTeam? team =
-          tournament.teamsInTheTournament.cast<DebateTeam?>().firstWhere(
-                (t) => t?.teamName.toLowerCase() == name.toLowerCase(),
-                orElse: () => null,
-              );
-
-      if (team != null) {
-        tournament.teamsInTheTournament.remove(team);
-        if (onSuccess != null) {
-          onSuccess("Team removed successfully.");
-        } else {
-          print("Team removed successfully.");
-        }
-      } else {
-        if (onError != null) {
-          onError("Team not found.");
-        } else {
-          print("Team not found.");
-        }
-      }
+      await _tournamentsCollection.doc(tournamentID).update(toJson());
     } catch (e) {
-      if (onError != null) {
-        onError("Error removing team: $e");
-      } else {
-        print("Error removing team: $e");
-      }
+      throw Exception('Error updating tournament: $e');
     }
   }
 
-  static void viewTeams(Tournament tournament,
-      {Function(List<DebateTeam>)? onTeamsRetrieved}) {
-    if (tournament.teamsInTheTournament.isEmpty) {
-      if (onTeamsRetrieved != null) {
-        onTeamsRetrieved([]);
-      } else {
-        print("No teams added yet.");
+  // Get tournament from Firestore
+  static Future<Tournament?> getTournament(String tournamentID) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('tournaments')
+          .doc(tournamentID)
+          .get();
+      if (doc.exists) {
+        return Tournament.fromJson(doc.data()!);
       }
-    } else {
-      if (onTeamsRetrieved != null) {
-        onTeamsRetrieved(tournament.teamsInTheTournament);
-      } else {
-        print("Teams in the tournament:");
-        for (var team in tournament.teamsInTheTournament) {
-          print(
-              "${team.teamID}: ${team.teamName} | Score: ${team.teamScore} | Wins: ${team.teamWins}");
-        }
-      }
+      return null;
+    } catch (e) {
+      throw Exception('Error getting tournament: $e');
     }
+  }
+
+  void addTeam(tournamentId, String teamName, String debaterName1,
+      String debaterName2, String debaterName3) {
+    // ADD LOGIC FOR ADDING A TEAM
+  }
+
+  void removeTeam(tournamentId, String teamName, String debaterName1,
+      String debaterName2, String debaterName3) {
+    // ADD LOGIC FOR REMOVING A TEAM
   }
 
   // Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
-      'clubName': clubName,
       'tournamentName': tournamentName,
-      'tournamentYear': tournamentYear,
+      'tournamentID': tournamentID,
+      'tournamentClubName': tournamentClubName,
+      'tournamentLocation': tournamentLocation,
+      'tournamentDescription': tournamentDescription,
+      'tournamentStartingDate': tournamentStartingDate.toIso8601String(),
+      'tournamentEndingDate': tournamentEndingDate.toIso8601String(),
       'currentSegment': currentSegment.index,
       'numberOfTeamsInTournament': numberOfTeamsInTournament,
+      'maxTeams': maxTeams,
+      'prizePool': prizePool,
+      'tournamentFormat': tournamentFormat.index,
+      'createdByUserID': createdByUserID,
+      'createdAt': createdAt?.toIso8601String(),
       'teamsInTheTournament':
-          teamsInTheTournament.map((team) => team.toJson()).toList(),
-      'currentMatches': currentMatches.map((match) => match.toJson()).toList(),
+          teamsInTheTournament?.map((team) => team.toJson()).toList(),
+      'currentMatches': currentMatches?.map((match) => match.toJson()).toList(),
     };
   }
 
   // Create from JSON
   factory Tournament.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic dateValue) {
+      if (dateValue == null) return null;
+      if (dateValue is Timestamp) {
+        return dateValue.toDate();
+      } else if (dateValue is String) {
+        return DateTime.tryParse(dateValue);
+      }
+      return null;
+    }
+
     return Tournament(
-      clubName: json['clubName'] ?? '',
+      tournamentClubName: json['tournamentClubName'] ?? '',
       tournamentName: json['tournamentName'] ?? '',
-      tournamentYear: json['tournamentYear'] ?? '',
+      tournamentID: json['tournamentID'] ?? '',
+      tournamentLocation: json['tournamentLocation'],
+      tournamentDescription: json['tournamentDescription'],
+      tournamentStartingDate:
+          parseDate(json['tournamentStartingDate']) ?? DateTime.now(),
+      tournamentEndingDate:
+          parseDate(json['tournamentEndingDate']) ?? DateTime.now(),
       currentSegment: TournamentStage.values[json['currentSegment'] ?? 0],
       numberOfTeamsInTournament: json['numberOfTeamsInTournament'] ?? 0,
+      maxTeams: json['maxTeams'],
+      prizePool: json['prizePool']?.toDouble(),
+      tournamentFormat: TournamentFormat.values[json['tournamentFormat'] ?? 1],
+      createdByUserID: json['createdByUserID'],
+      createdAt: parseDate(json['createdAt']),
       teamsInTheTournament: (json['teamsInTheTournament'] as List?)
-              ?.map((teamJson) => DebateTeam.fromJson(teamJson))
-              .toList() ??
-          [],
+          ?.map((teamJson) => DebateTeam.fromJson(teamJson))
+          .toList(),
       currentMatches: (json['currentMatches'] as List?)
-              ?.map((matchJson) => DebateMatch.fromJson(matchJson))
-              .toList() ??
-          [],
+          ?.map((matchJson) => DebateMatch.fromJson(matchJson))
+          .toList(),
     );
   }
 }

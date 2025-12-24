@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/user.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -11,9 +15,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _userIdController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _clubNameController = TextEditingController();
+  final _phoneNumberController = TextEditingController();
+  final _addressController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -23,9 +30,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _userIdController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _clubNameController.dispose();
+    _phoneNumberController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -34,15 +44,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _isLoading = true;
       });
+      final userId = _userIdController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final name = _nameController.text.trim();
+      final clubName = _clubNameController.text.trim().isEmpty
+          ? null
+          : _clubNameController.text.trim();
+      final phoneNumber = _phoneNumberController.text.trim().isEmpty
+          ? null
+          : _phoneNumberController.text.trim();
+      final address = _addressController.text.trim().isEmpty
+          ? null
+          : _addressController.text.trim();
+      final memberSince = DateTime.now();
 
-      // TODO: Implement registration logic
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Check username uniqueness (userID)
+        final existing = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        if (existing.exists) {
+          throw Exception('Username "$userId" is already taken.');
+        }
 
-      setState(() {
-        _isLoading = false;
-      });
+        // Create auth user
+        final cred = await fb_auth.FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
 
-      if (mounted) {
+        // Build app user model (omit storing password in Firestore)
+        final appUser = User(
+          name: name,
+          userID: userId,
+          email: email,
+          clubName: clubName,
+          phoneNumber: phoneNumber,
+          address: address,
+          memberSince: memberSince,
+        );
+
+        final data = appUser.toJson()
+          ..remove('password')
+          ..addAll({
+            'uid': cred.user?.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+        // Store user doc keyed by username
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .set(data);
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Registration successful!'),
@@ -50,8 +109,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        // TODO: Navigate to home or login screen
         Navigator.of(context).pop();
+      } on fb_auth.FirebaseAuthException catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        final msg = switch (e.code) {
+          'email-already-in-use' => 'That email is already in use.',
+          'weak-password' => 'Password is too weak.',
+          _ => e.message ?? 'Registration failed.',
+        };
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -172,6 +256,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }
                     return null;
                   },
+                ),
+
+                const SizedBox(height: 16),
+
+                //Email Field
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'Enter your email address',
+                    prefixIcon: const Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                //Phone Number Field
+                TextFormField(
+                  controller: _phoneNumberController,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number (Optional)',
+                    hintText: 'Enter your phone number',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+
+                const SizedBox(height: 16),
+
+                //Address Field
+                TextFormField(
+                  controller: _addressController,
+                  decoration: InputDecoration(
+                    labelText: 'Address (Optional)',
+                    hintText: 'Enter your address',
+                    prefixIcon: const Icon(Icons.home),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
 
                 const SizedBox(height: 16),

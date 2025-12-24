@@ -1,11 +1,22 @@
+import 'package:debate_tournament_app/screens/adjudicator_screen.dart';
 import 'package:debate_tournament_app/screens/create_a_tournament_screen.dart';
+import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
 import 'package:debate_tournament_app/screens/search_tournaments_screen.dart';
 import 'package:flutter/material.dart';
+
+import '../models/user.dart' as app_user;
 import 'profile_screen.dart';
 
 class DashScreen extends StatelessWidget {
-  const DashScreen({Key? key}) : super(key: key);
+  final app_user.User? currentUser;
+  final bool isRegistered;
+
+  const DashScreen({
+    Key? key,
+    this.currentUser,
+    this.isRegistered = true,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -17,23 +28,28 @@ class DashScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                ),
-              );
-            },
-          ),
+          if (isRegistered)
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {
+                // TODO: Navigate to notifications
+              },
+            ),
+          if (isRegistered)
+            IconButton(
+              icon: const Icon(Icons.account_circle),
+              onPressed: () {
+                if (currentUser != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfileScreen(currentUser: currentUser!),
+                    ),
+                  );
+                }
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -65,9 +81,9 @@ class DashScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Welcome Back!',
-                      style: TextStyle(
+                    Text(
+                      isRegistered ? 'Welcome Back!' : 'Welcome!',
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -75,7 +91,9 @@ class DashScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Manage your debate tournaments',
+                      isRegistered
+                          ? 'Manage your debate tournaments'
+                          : 'Browse tournaments and debaters',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white.withOpacity(0.9),
@@ -88,43 +106,44 @@ class DashScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Quick Stats Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.sports,
-                      title: 'Active',
-                      value: '5',
-                      subtitle: 'Tournaments',
-                      color: Colors.green,
+            // Quick Stats Section (Only for registered users)
+            if (isRegistered)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        icon: Icons.sports,
+                        title: 'Active',
+                        value: '5',
+                        subtitle: 'Tournaments',
+                        color: Colors.green,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.groups,
-                      title: 'Total',
-                      value: '48',
-                      subtitle: 'Teams',
-                      color: Colors.orange,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard(
+                        icon: Icons.groups,
+                        title: 'Total',
+                        value: '48',
+                        subtitle: 'Teams',
+                        color: Colors.orange,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.person,
-                      title: 'Total',
-                      value: '144',
-                      subtitle: 'Debaters',
-                      color: Colors.purple,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard(
+                        icon: Icons.person,
+                        title: 'Total',
+                        value: '144',
+                        subtitle: 'Debaters',
+                        color: Colors.purple,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 24),
 
@@ -134,9 +153,9 @@ class DashScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
+                  Text(
+                    isRegistered ? 'Quick Actions' : 'Browse',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -144,61 +163,66 @@ class DashScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Create Tournament Card
-                  _buildActionCard(
-                    context: context,
-                    icon: Icons.add_circle,
-                    title: 'Create a Tournament',
-                    subtitle: 'Start a new debate tournament',
-                    color: Colors.blue,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CreateATournamentScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  // Create Tournament Card (Only for registered users)
+                  if (isRegistered)
+                    _buildActionCard(
+                      context: context,
+                      icon: Icons.add_circle,
+                      title: 'Create a Tournament',
+                      subtitle: 'Start a new debate tournament',
+                      color: Colors.blue,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const CreateATournamentScreen(),
+                          ),
+                        );
+                      },
+                    ),
 
-                  const SizedBox(height: 12),
+                  if (isRegistered) const SizedBox(height: 12),
 
-                  // Adjudicator Area Card
-                  _buildActionCard(
-                    context: context,
-                    icon: Icons.gavel,
-                    title: 'Adjudicator Area',
-                    subtitle: 'Manage adjudicators and assignments',
-                    color: Colors.red,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdjudicatorScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  // Adjudicator Area Card (Only for registered users)
+                  if (isRegistered)
+                    _buildActionCard(
+                      context: context,
+                      icon: Icons.gavel,
+                      title: 'Adjudicator Area',
+                      subtitle: 'Manage adjudicators and assignments',
+                      color: Colors.red,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AdjudicatorScreen(),
+                          ),
+                        );
+                      },
+                    ),
 
-                  // Manage Tournaments Card
-                  _buildActionCard(
-                    context: context,
-                    icon: Icons.edit,
-                    title: 'Manage Your Tournaments',
-                    subtitle: 'View and edit your tournaments',
-                    color: Colors.green,
-                    onTap: () {
-                      // TODO: Create this and uncomment
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(
-                      //     builder: (context) => const ManageOwnTournamentScreen(),
-                      //   ),
-                      // );
-                    },
-                  ),
+                  if (isRegistered) const SizedBox(height: 12),
 
-                  const SizedBox(height: 12),
+                  // Manage Tournaments Card (Only for registered users)
+                  if (isRegistered)
+                    _buildActionCard(
+                      context: context,
+                      icon: Icons.edit,
+                      title: 'Manage Your Tournaments',
+                      subtitle: 'View and edit your tournaments',
+                      color: Colors.green,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const OwnTournamentsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                  if (isRegistered) const SizedBox(height: 12),
 
                   // Search Tournaments Card
                   _buildActionCard(
@@ -238,47 +262,51 @@ class DashScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Recent Activity Section
-                  const Text(
-                    'Recent Activity',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  // Recent Activity Section (Only for registered users)
+                  if (isRegistered)
+                    const Text(
+                      'Recent Activity',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                  if (isRegistered) const SizedBox(height: 16),
 
-                  _buildActivityCard(
-                    icon: Icons.sports,
-                    title: 'Inter-University Debate 2025',
-                    subtitle: 'Preliminary Round 2 in progress',
-                    time: '2 hours ago',
-                    color: Colors.blue,
-                  ),
+                  if (isRegistered)
+                    _buildActivityCard(
+                      icon: Icons.sports,
+                      title: 'Inter-University Debate 2025',
+                      subtitle: 'Preliminary Round 2 in progress',
+                      time: '2 hours ago',
+                      color: Colors.blue,
+                    ),
 
-                  const SizedBox(height: 12),
+                  if (isRegistered) const SizedBox(height: 12),
 
-                  _buildActivityCard(
-                    icon: Icons.groups,
-                    title: 'New team registered',
-                    subtitle: 'Phoenix Debaters joined tournament',
-                    time: '5 hours ago',
-                    color: Colors.green,
-                  ),
+                  if (isRegistered)
+                    _buildActivityCard(
+                      icon: Icons.groups,
+                      title: 'New team registered',
+                      subtitle: 'Phoenix Debaters joined tournament',
+                      time: '5 hours ago',
+                      color: Colors.green,
+                    ),
 
-                  const SizedBox(height: 12),
+                  if (isRegistered) const SizedBox(height: 12),
 
-                  _buildActivityCard(
-                    icon: Icons.emoji_events,
-                    title: 'Tournament completed',
-                    subtitle: 'National Debate Championship 2025',
-                    time: '1 day ago',
-                    color: Colors.orange,
-                  ),
+                  if (isRegistered)
+                    _buildActivityCard(
+                      icon: Icons.emoji_events,
+                      title: 'Tournament completed',
+                      subtitle: 'National Debate Championship 2025',
+                      time: '1 day ago',
+                      color: Colors.orange,
+                    ),
 
-                  const SizedBox(height: 24),
+                  if (isRegistered) const SizedBox(height: 24),
                 ],
               ),
             ),

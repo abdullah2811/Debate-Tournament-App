@@ -145,7 +145,7 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
@@ -153,8 +153,8 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
                           color: Colors.amber,
                           size: 18,
                         ),
-                        const SizedBox(width: 6),
-                        const Text(
+                        SizedBox(width: 6),
+                        Text(
                           'Top Performer',
                           style: TextStyle(
                             fontSize: 14,
@@ -808,11 +808,11 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(Icons.trending_up, color: Colors.green, size: 24),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      SizedBox(width: 12),
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

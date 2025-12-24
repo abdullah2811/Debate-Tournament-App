@@ -1,4 +1,9 @@
+import 'package:debate_tournament_app/screens/dash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/user.dart' as app_user;
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,15 +34,37 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isLoading = true;
       });
+      final username = _userIdController.text.trim();
+      final password = _passwordController.text.trim();
 
-      // TODO: Implement login logic
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Lookup user doc by username to obtain email
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(username)
+            .get();
 
-      setState(() {
-        _isLoading = false;
-      });
+        if (!doc.exists) {
+          throw Exception('User "$username" not found.');
+        }
 
-      if (mounted) {
+        final data = doc.data() ?? {};
+        final email = (data['email'] ?? '').toString();
+        if (email.isEmpty) {
+          throw Exception('No email found for this user.');
+        }
+
+        await fb_auth.FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: password);
+
+        // Build in-memory current user from Firestore data
+        final currentUser = app_user.User.fromJson(data);
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login successful!'),
@@ -45,8 +72,42 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
 
-        // TODO: Navigate to home screen
-        Navigator.of(context).pop();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DashScreen(
+              currentUser: currentUser,
+              isRegistered: true,
+            ),
+          ),
+        );
+      } on fb_auth.FirebaseAuthException catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        final msg = switch (e.code) {
+          'user-not-found' => 'No account found for that username/email.',
+          'wrong-password' => 'Incorrect password.',
+          'invalid-credential' => 'Invalid credentials.',
+          _ => e.message ?? 'Login failed.',
+        };
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

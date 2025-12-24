@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:uuid/uuid.dart';
+import '../models/tournament.dart';
 import 'dash_screen.dart';
 
 class CreateATournamentScreen extends StatefulWidget {
@@ -22,6 +26,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
 
   String _selectedFormat = 'British Parliamentary';
   bool _agreeToTerms = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -60,6 +65,149 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
       setState(() {
         controller.text = '${picked.month}/${picked.day}/${picked.year}';
       });
+    }
+  }
+
+  Future<void> _createTournament() async {
+    if (!_formKey.currentState!.validate() || !_agreeToTerms) {
+      if (!_agreeToTerms) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please agree to terms and conditions'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get current user
+      final currentUser = fb_auth.FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Get username from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: currentUser.uid)
+          .limit(1)
+          .get();
+
+      if (userDoc.docs.isEmpty) {
+        throw Exception('User data not found');
+      }
+
+      final username = userDoc.docs.first.id;
+
+      // Parse dates
+      final startDate = _parseDateString(_startDateController.text);
+      final endDate = _parseDateString(_endDateController.text);
+
+      if (startDate == null || endDate == null) {
+        throw Exception('Invalid dates');
+      }
+
+      if (endDate.isBefore(startDate)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('End date must be after start date'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Create tournament ID
+      const uuid = Uuid();
+      final tournamentID = uuid.v4();
+
+      // Create tournament format enum
+      final formatMap = {
+        'Asian Parliamentary': TournamentFormat.asianParliamentary,
+        'British Parliamentary': TournamentFormat.britishParliamentary,
+        'Lincoln-Douglas': TournamentFormat.lincolnDouglas,
+        'Policy Debate': TournamentFormat.policyDebate,
+        'Public Forum': TournamentFormat.publicForum,
+        'Student Congress': TournamentFormat.studentCongress,
+      };
+
+      final prizePoolValue = _prizePoolController.text.trim().isEmpty
+          ? null
+          : double.tryParse(_prizePoolController.text.trim());
+      final maxTeamsValue = _maxTeamsController.text.trim().isEmpty
+          ? null
+          : int.tryParse(_maxTeamsController.text.trim());
+
+      // Create tournament object
+      final tournament = Tournament(
+        tournamentName: _tournamentNameController.text.trim(),
+        tournamentID: tournamentID,
+        tournamentClubName: _clubNameController.text.trim(),
+        tournamentLocation: _locationController.text.trim(),
+        tournamentDescription: _descriptionController.text.trim(),
+        tournamentStartingDate: startDate,
+        tournamentEndingDate: endDate,
+        tournamentFormat:
+            formatMap[_selectedFormat] ?? TournamentFormat.britishParliamentary,
+        maxTeams: maxTeamsValue,
+        prizePool: prizePoolValue,
+        createdByUserID: username,
+        createdAt: DateTime.now(),
+      );
+
+      // Save to Firestore
+      await tournament.saveTournament();
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tournament created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate back
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating tournament: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  DateTime? _parseDateString(String dateString) {
+    try {
+      final parts = dateString.split('/');
+      if (parts.length != 3) return null;
+      final month = int.parse(parts[0]);
+      final day = int.parse(parts[1]);
+      final year = int.parse(parts[2]);
+      return DateTime(year, month, day);
+    } catch (e) {
+      return null;
     }
   }
 
@@ -335,8 +483,8 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                         isExpanded: true,
                         underline: const SizedBox(),
                         items: <String>[
-                          'British Parliamentary',
                           'Asian Parliamentary',
+                          'British Parliamentary',
                           'Lincoln-Douglas',
                           'Policy Debate',
                           'Public Forum',
@@ -377,7 +525,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                   controller: _maxTeamsController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Maximum Number of Teams',
+                    labelText: 'Maximum Number of Teams (Optional)',
                     hintText: 'e.g., 24',
                     prefixIcon: const Icon(Icons.groups),
                     border: OutlineInputBorder(
@@ -393,12 +541,6 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                           const BorderSide(color: Colors.blue, width: 2),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter maximum number of teams';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: 16),
@@ -433,7 +575,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                   controller: _descriptionController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    labelText: 'Tournament Description',
+                    labelText: 'Tournament Description (Optional)',
                     hintText: 'Enter tournament description...',
                     prefixIcon: const Icon(Icons.description),
                     border: OutlineInputBorder(
@@ -450,12 +592,6 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                     ),
                     alignLabelWithHint: true,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Description is required';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: 24),
@@ -484,15 +620,15 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                           child: Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: RichText(
-                              text: TextSpan(
+                              text: const TextSpan(
                                 children: [
-                                  const TextSpan(
+                                  TextSpan(
                                     text: 'I agree to the ',
                                     style: TextStyle(color: Colors.black87),
                                   ),
                                   TextSpan(
                                     text: 'Terms and Conditions',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.blue,
                                       fontWeight: FontWeight.w600,
                                       decoration: TextDecoration.underline,
@@ -551,27 +687,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate() &&
-                              _agreeToTerms) {
-                            // TODO: Create tournament
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Tournament created successfully!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } else if (!_agreeToTerms) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Please agree to terms and conditions'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: _isLoading ? null : _createTournament,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -581,14 +697,25 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
                           ),
                           elevation: 2,
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_circle),
-                            SizedBox(width: 8),
+                            if (_isLoading)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            else
+                              const Icon(Icons.check_circle),
+                            const SizedBox(width: 8),
                             Text(
-                              'Create',
-                              style: TextStyle(
+                              _isLoading ? 'Creating...' : 'Create',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
