@@ -216,7 +216,8 @@ class DashScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const OwnTournamentsScreen(),
+                            builder: (context) =>
+                                OwnTournamentsScreen(currentUser: currentUser!),
                           ),
                         );
                       },

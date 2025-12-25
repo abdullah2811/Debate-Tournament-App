@@ -1,7 +1,7 @@
 class Debater {
   int debaterID;
   String name;
-  String userID;
+  String? userID;
   double individualScore;
 
   Debater({

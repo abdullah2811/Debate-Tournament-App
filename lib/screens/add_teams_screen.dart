@@ -1,24 +1,48 @@
+import 'package:debate_tournament_app/models/tournament.dart';
 import 'package:flutter/material.dart';
-
 import '../models/debate_team.dart';
 import '../models/debater.dart';
 
-class ManageTournamentScreen extends StatefulWidget {
-  const ManageTournamentScreen({Key? key}) : super(key: key);
+class AddTeamsScreen extends StatefulWidget {
+  final Tournament currentTournament;
+  const AddTeamsScreen({required this.currentTournament, Key? key})
+      : super(key: key);
 
   @override
-  State<ManageTournamentScreen> createState() => _ManageTournamentScreenState();
+  State<AddTeamsScreen> createState() => _AddTeamsScreenState();
 }
 
-class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
+class _AddTeamsScreenState extends State<AddTeamsScreen> {
   final TextEditingController _teamNameController = TextEditingController();
   final TextEditingController _debaterOneController = TextEditingController();
   final TextEditingController _debaterTwoController = TextEditingController();
   final TextEditingController _debaterThreeController = TextEditingController();
 
-  final List<DebateTeam> _teams = [];
+  late List<DebateTeam> _teams;
   int _teamIdCounter = 1;
   int _debaterIdCounter = 1;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load teams from tournament if they exist
+    _teams = widget.currentTournament.teamsInTheTournament ?? [];
+    // Set counters based on existing data
+    if (_teams.isNotEmpty) {
+      _teamIdCounter =
+          _teams.map((t) => t.teamID).reduce((a, b) => a > b ? a : b) + 1;
+      for (var team in _teams) {
+        for (var member in team.teamMembers) {
+          if (member is Debater) {
+            _debaterIdCounter = _debaterIdCounter > member.debaterID
+                ? _debaterIdCounter
+                : member.debaterID + 1;
+          }
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -51,6 +75,9 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
       teamName: teamName,
       teamMembers: debaters,
     );
+
+    // Add team to tournament using tournament method
+    widget.currentTournament.addTeam(widget.currentTournament, newTeam);
 
     setState(() {
       _teams.add(newTeam);
@@ -212,6 +239,8 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
                   (_teams[index].teamMembers[2] as Debater)
                       .updateName(deb3Ctrl.text.trim());
                 }
+                // Update tournament in Firebase
+                widget.currentTournament.updateTournament();
               });
               Navigator.pop(context);
               _showSnack('Team updated successfully.');
@@ -225,6 +254,8 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
 
   void _removeTeam(int index) {
     final teamName = _teams[index].teamName;
+    final team = _teams[index];
+
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -238,6 +269,9 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
           ElevatedButton(
             onPressed: () {
               setState(() {
+                // Use tournament method to remove team
+                widget.currentTournament
+                    .removeTeam(widget.currentTournament, team);
                 _teams.removeAt(index);
               });
               Navigator.pop(context);
@@ -255,6 +289,25 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
     _showSnack('Add IA will be implemented later.');
   }
 
+  Future<void> _lockTeamList() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      widget.currentTournament.teamAdditionClosed = true;
+      await widget.currentTournament.updateTournament();
+      _showSnack('Team list locked.');
+      Navigator.pop(context, true); // Return true to signal refresh needed
+    } catch (e) {
+      _showSnack('Error locking team list: $e');
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -265,7 +318,7 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Tournament'),
+        title: const Text('Prepare Teams'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -360,6 +413,36 @@ class _ManageTournamentScreenState extends State<ManageTournamentScreen> {
               label: const Text(
                 'Add IA',
                 style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSaving ? null : _lockTeamList,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.lock),
+                label: Text(
+                  _isSaving ? 'Locking...' : 'Lock the team list',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(height: 24),

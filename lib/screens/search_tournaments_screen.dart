@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/tournament.dart';
 
 class SearchTournamentsScreen extends StatefulWidget {
   const SearchTournamentsScreen({Key? key}) : super(key: key);
@@ -11,6 +13,50 @@ class SearchTournamentsScreen extends StatefulWidget {
 class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
+  List<Tournament> _allTournaments = [];
+  List<Tournament> _filteredTournaments = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTournaments();
+  }
+
+  Future<void> _loadTournaments() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tournaments')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final tournaments = querySnapshot.docs
+          .map((doc) => Tournament.fromJson(doc.data()))
+          .toList();
+
+      setState(() {
+        _allTournaments = tournaments;
+        _filteredTournaments = tournaments;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading tournaments: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -122,7 +168,9 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
             child: Row(
               children: [
                 Text(
-                  '24 tournaments found',
+                  _isLoading
+                      ? 'Loading...'
+                      : '${_filteredTournaments.length} tournaments found',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -146,27 +194,40 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
 
           // Tournament List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 8, // Placeholder count
-              itemBuilder: (context, index) {
-                return _buildTournamentCard(
-                  tournamentName:
-                      'National Debate Championship ${2025 - index}',
-                  year: '${2025 - index}',
-                  club: 'National Debate Association',
-                  location: 'New York, USA',
-                  segment: index % 2 == 0 ? 'Semi Finals' : 'Quarter Finals',
-                  teamsCount: 32 - (index * 2),
-                  status: index % 3 == 0
-                      ? 'Active'
-                      : index % 3 == 1
-                          ? 'Completed'
-                          : 'Upcoming',
-                  date: 'Dec ${15 + index}, ${2025 - index}',
-                );
-              },
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : _filteredTournaments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No tournaments found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _filteredTournaments.length,
+                        itemBuilder: (context, index) {
+                          final tournament = _filteredTournaments[index];
+                          return _buildTournamentCard(tournament: tournament);
+                        },
+                      ),
           ),
         ],
       ),
@@ -180,7 +241,8 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? Colors.white : Colors.white70,
+          color:
+              isSelected ? const Color.fromARGB(255, 7, 2, 2) : Colors.white70,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -204,36 +266,44 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
     );
   }
 
-  Widget _buildTournamentCard({
-    required String tournamentName,
-    required String year,
-    required String club,
-    required String location,
-    required String segment,
-    required int teamsCount,
-    required String status,
-    required String date,
-  }) {
+  Widget _buildTournamentCard({required Tournament tournament}) {
+    // Determine status based on dates
+    final now = DateTime.now();
+    String status;
     Color statusColor;
     Color statusBgColor;
 
-    switch (status) {
-      case 'Active':
-        statusColor = Colors.green;
-        statusBgColor = Colors.green.shade50;
-        break;
-      case 'Completed':
-        statusColor = Colors.grey;
-        statusBgColor = Colors.grey.shade200;
-        break;
-      case 'Upcoming':
-        statusColor = Colors.orange;
-        statusBgColor = Colors.orange.shade50;
-        break;
-      default:
-        statusColor = Colors.blue;
-        statusBgColor = Colors.blue.shade50;
+    if (now.isBefore(tournament.tournamentStartingDate)) {
+      status = 'Upcoming';
+      statusColor = Colors.orange;
+      statusBgColor = Colors.orange.shade50;
+    } else if (now.isAfter(tournament.tournamentEndingDate)) {
+      status = 'Completed';
+      statusColor = Colors.grey;
+      statusBgColor = Colors.grey.shade200;
+    } else {
+      status = 'Active';
+      statusColor = Colors.green;
+      statusBgColor = Colors.green.shade50;
     }
+
+    // Format dates
+    final startDate =
+        '${tournament.tournamentStartingDate.month}/${tournament.tournamentStartingDate.day}/${tournament.tournamentStartingDate.year}';
+    final endDate =
+        '${tournament.tournamentEndingDate.month}/${tournament.tournamentEndingDate.day}/${tournament.tournamentEndingDate.year}';
+    final dateRange = startDate == endDate ? startDate : '$startDate - $endDate';
+
+    // Get segment name
+    final segmentName = tournament.currentSegment.toString().split('.').last;
+    final formattedSegment = segmentName
+        .replaceAllMapped(
+            RegExp(r'([a-z])([A-Z])'), (match) => '${match[1]} ${match[2]}')
+        .replaceAll('preliminary', 'Preliminary ')
+        .replaceAll('semi', 'Semi ')
+        .replaceAll('final', 'Final')
+        .replaceAll('Finals', 'Finals')
+        .trim();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -299,7 +369,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      year,
+                      '${tournament.tournamentStartingDate.year}',
                       style: TextStyle(
                         color: Colors.blue.shade900,
                         fontSize: 12,
@@ -314,7 +384,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
 
               // Tournament Name
               Text(
-                tournamentName,
+                tournament.tournamentName,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -331,7 +401,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      club,
+                      tournament.tournamentClubName,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -344,21 +414,27 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
               const SizedBox(height: 6),
 
               // Location
-              Row(
-                children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 6),
-                  Text(
-                    location,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
+              if (tournament.tournamentLocation != null &&
+                  tournament.tournamentLocation!.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        tournament.tournamentLocation!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              const SizedBox(height: 6),
+              if (tournament.tournamentLocation != null &&
+                  tournament.tournamentLocation!.isNotEmpty)
+                const SizedBox(height: 6),
 
               // Date
               Row(
@@ -366,7 +442,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                   Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    date,
+                    dateRange,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -396,7 +472,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                             size: 14, color: Colors.purple.shade700),
                         const SizedBox(width: 6),
                         Text(
-                          segment,
+                          formattedSegment,
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.purple.shade900,
@@ -423,7 +499,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                             size: 14, color: Colors.orange.shade700),
                         const SizedBox(width: 6),
                         Text(
-                          '$teamsCount Teams',
+                          '${tournament.numberOfTeamsInTournament} Teams',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.orange.shade900,

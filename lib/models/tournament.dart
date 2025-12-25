@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'debate_team.dart';
-import 'tournament_segment.dart';
 import 'debate_match.dart';
+import 'debater.dart';
 
 enum TournamentFormat {
   asianParliamentary,
@@ -24,11 +24,13 @@ class Tournament {
   int? maxTeams;
   double? prizePool;
   TournamentFormat tournamentFormat;
-  TournamentStage currentSegment;
+  String currentSegment;
   String? createdByUserID;
   DateTime? createdAt;
+  List<Debater>? debatersInTheTournament;
   List<DebateTeam>? teamsInTheTournament;
   List<DebateMatch>? currentMatches;
+  bool teamAdditionClosed = false;
 
   Tournament({
     required this.tournamentName,
@@ -41,12 +43,14 @@ class Tournament {
     this.numberOfTeamsInTournament = 0,
     this.maxTeams,
     this.prizePool,
-    this.tournamentFormat = TournamentFormat.britishParliamentary,
-    this.currentSegment = TournamentStage.preliminary1,
+    this.tournamentFormat = TournamentFormat.asianParliamentary,
+    this.currentSegment = '1st Tab Round',
     this.createdByUserID,
     this.createdAt,
+    this.debatersInTheTournament,
     this.teamsInTheTournament,
     this.currentMatches,
+    this.teamAdditionClosed = false,
   });
 
   CollectionReference<Map<String, dynamic>> get _tournamentsCollection =>
@@ -86,14 +90,48 @@ class Tournament {
     }
   }
 
-  void addTeam(tournamentId, String teamName, String debaterName1,
-      String debaterName2, String debaterName3) {
-    // ADD LOGIC FOR ADDING A TEAM
+  void addDebater(Debater debater) {
+    debatersInTheTournament ??= [];
+    debatersInTheTournament!.add(debater);
+    updateTournament();
   }
 
-  void removeTeam(tournamentId, String teamName, String debaterName1,
-      String debaterName2, String debaterName3) {
-    // ADD LOGIC FOR REMOVING A TEAM
+  void removeDebater(Debater debater) {
+    debatersInTheTournament ??= [];
+    debatersInTheTournament!
+        .removeWhere((d) => d.debaterID == debater.debaterID);
+    updateTournament();
+  }
+
+  void addTeam(Tournament tournament, DebateTeam team) {
+    final newTeam = team;
+    tournament.teamsInTheTournament ??= [];
+    tournament.teamsInTheTournament!.add(newTeam);
+    tournament.numberOfTeamsInTournament++;
+    tournament.updateTournament();
+    //Add the debaters to the debaters list
+    for (var debater in team.teamMembers) {
+      tournament.addDebater(debater);
+    }
+  }
+
+  void removeTeam(Tournament tournament, DebateTeam team) {
+    tournament.teamsInTheTournament ??= [];
+    tournament.teamsInTheTournament!.removeWhere((t) =>
+        t.teamName == team.teamName &&
+        t.teamMembers.length == 3 &&
+        t.teamMembers[0].name == team.teamMembers[0].name &&
+        t.teamMembers[1].name == team.teamMembers[1].name &&
+        t.teamMembers[2].name == team.teamMembers[2].name);
+    tournament.numberOfTeamsInTournament--;
+    tournament.updateTournament();
+    //Remove the debaters from the debaters list
+    tournament.debatersInTheTournament ??= [];
+    tournament.debatersInTheTournament!.removeWhere((debater) =>
+        debater.debaterID == team.teamMembers[0].debaterID ||
+        debater.debaterID == team.teamMembers[1].debaterID ||
+        debater.debaterID == team.teamMembers[2].debaterID);
+    tournament.updateTournament();
   }
 
   // Convert to JSON for storage
@@ -106,16 +144,19 @@ class Tournament {
       'tournamentDescription': tournamentDescription,
       'tournamentStartingDate': tournamentStartingDate.toIso8601String(),
       'tournamentEndingDate': tournamentEndingDate.toIso8601String(),
-      'currentSegment': currentSegment.index,
+      'currentSegment': currentSegment,
       'numberOfTeamsInTournament': numberOfTeamsInTournament,
       'maxTeams': maxTeams,
       'prizePool': prizePool,
       'tournamentFormat': tournamentFormat.index,
       'createdByUserID': createdByUserID,
       'createdAt': createdAt?.toIso8601String(),
+      'debatersInTheTournament':
+          debatersInTheTournament?.map((debater) => debater.toJson()).toList(),
       'teamsInTheTournament':
           teamsInTheTournament?.map((team) => team.toJson()).toList(),
       'currentMatches': currentMatches?.map((match) => match.toJson()).toList(),
+      'teamAdditionClosed': teamAdditionClosed,
     };
   }
 
@@ -141,19 +182,24 @@ class Tournament {
           parseDate(json['tournamentStartingDate']) ?? DateTime.now(),
       tournamentEndingDate:
           parseDate(json['tournamentEndingDate']) ?? DateTime.now(),
-      currentSegment: TournamentStage.values[json['currentSegment'] ?? 0],
+      currentSegment: json['currentSegment'] ?? '1st Tab Round',
       numberOfTeamsInTournament: json['numberOfTeamsInTournament'] ?? 0,
       maxTeams: json['maxTeams'],
       prizePool: json['prizePool']?.toDouble(),
       tournamentFormat: TournamentFormat.values[json['tournamentFormat'] ?? 1],
       createdByUserID: json['createdByUserID'],
       createdAt: parseDate(json['createdAt']),
+      debatersInTheTournament: (json['debatersInTheTournament'] as List?)
+          ?.map((debaterJson) => Debater.fromJson(debaterJson))
+          .toList(),
       teamsInTheTournament: (json['teamsInTheTournament'] as List?)
           ?.map((teamJson) => DebateTeam.fromJson(teamJson))
           .toList(),
       currentMatches: (json['currentMatches'] as List?)
           ?.map((matchJson) => DebateMatch.fromJson(matchJson))
           .toList(),
+      // Defaults to false if missing
+      teamAdditionClosed: json['teamAdditionClosed'] == true,
     );
   }
 }
