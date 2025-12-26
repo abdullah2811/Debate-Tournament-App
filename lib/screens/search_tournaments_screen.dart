@@ -1,3 +1,4 @@
+import 'package:debate_tournament_app/screens/tournament_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament.dart';
@@ -292,7 +293,8 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
         '${tournament.tournamentStartingDate.month}/${tournament.tournamentStartingDate.day}/${tournament.tournamentStartingDate.year}';
     final endDate =
         '${tournament.tournamentEndingDate.month}/${tournament.tournamentEndingDate.day}/${tournament.tournamentEndingDate.year}';
-    final dateRange = startDate == endDate ? startDate : '$startDate - $endDate';
+    final dateRange =
+        startDate == endDate ? startDate : '$startDate - $endDate';
 
     // Get segment name
     final segmentName = tournament.currentSegment.toString().split('.').last;
@@ -519,7 +521,12 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () {
-                    // TODO: View details
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TournamentDetailsScreen(),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.arrow_forward, size: 18),
                   label: const Text('View Details'),

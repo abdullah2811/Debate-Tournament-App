@@ -1,52 +1,16 @@
-// Enum for tournament stages with explicit values
-enum TournamentStage {
-  preliminary1,
-  preliminary2,
-  preliminary3,
-  octaFinal,
-  quarterFinal,
-  semiFinal,
-  finalStage,
-}
-
-extension TournamentStageExtension on TournamentStage {
-  int get value {
-    switch (this) {
-      case TournamentStage.preliminary1: return 1;
-      case TournamentStage.preliminary2: return 2;
-      case TournamentStage.preliminary3: return 3;
-      case TournamentStage.octaFinal: return 4;
-      case TournamentStage.quarterFinal: return 5;
-      case TournamentStage.semiFinal: return 6;
-      case TournamentStage.finalStage: return 7;
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case TournamentStage.preliminary1: return 'Preliminary 1';
-      case TournamentStage.preliminary2: return 'Preliminary 2';
-      case TournamentStage.preliminary3: return 'Preliminary 3';
-      case TournamentStage.octaFinal: return 'Octa Final';
-      case TournamentStage.quarterFinal: return 'Quarter Final';
-      case TournamentStage.semiFinal: return 'Semi Final';
-      case TournamentStage.finalStage: return 'Final';
-    }
-  }
-}
-
-// Represents a segment (stage) of the tournament
 class TournamentSegment {
   String segmentName;
   int segmentID;
-  List<dynamic> teamsInThisSegment; // Will contain DebateTeam objects
+  List<dynamic>? teamsInThisSegment; // Will contain DebateTeam objects
   int numberOfTeamsInSegment;
+  int numberOfTeamsAutoQualifiedForNextRound = 0;
 
   TournamentSegment({
     required this.segmentName,
     required this.segmentID,
-    this.teamsInThisSegment = const [],
+    this.teamsInThisSegment,
     this.numberOfTeamsInSegment = 0,
+    this.numberOfTeamsAutoQualifiedForNextRound = 0,
   });
 
   // Convert to JSON for storage
@@ -54,8 +18,20 @@ class TournamentSegment {
     return {
       'segmentName': segmentName,
       'segmentID': segmentID,
-      'teamsInThisSegment': teamsInThisSegment.map((team) => team.toJson()).toList(),
+      // Support both model objects and raw maps already coming from Firestore
+      'teamsInThisSegment': teamsInThisSegment!.map((team) {
+        if (team is Map<String, dynamic>) {
+          return team;
+        }
+        try {
+          return team.toJson();
+        } catch (_) {
+          return team;
+        }
+      }).toList(),
       'numberOfTeamsInSegment': numberOfTeamsInSegment,
+      'numberOfTeamsAutoQualifiedForNextRound':
+          numberOfTeamsAutoQualifiedForNextRound,
     };
   }
 
@@ -65,9 +41,12 @@ class TournamentSegment {
       segmentName: json['segmentName'] ?? '',
       segmentID: json['segmentID'] ?? 0,
       teamsInThisSegment: (json['teamsInThisSegment'] as List?)
-          ?.map((teamJson) => teamJson)
-          .toList() ?? [],
+              ?.map((teamJson) => teamJson)
+              .toList() ??
+          [],
       numberOfTeamsInSegment: json['numberOfTeamsInSegment'] ?? 0,
+      numberOfTeamsAutoQualifiedForNextRound:
+          json['numberOfTeamsAutoQualifiedForNextRound'] ?? 0,
     );
   }
 }

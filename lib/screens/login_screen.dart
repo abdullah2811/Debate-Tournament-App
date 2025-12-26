@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
 
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (context) => DashScreen(
@@ -80,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
               isRegistered: true,
             ),
           ),
+          (route) => false, // Remove all previous routes
         );
       } on fb_auth.FirebaseAuthException catch (e) {
         setState(() {

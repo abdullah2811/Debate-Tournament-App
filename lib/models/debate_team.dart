@@ -14,6 +14,7 @@ class DebateTeam {
   int teamLosses;
   int teamPlayedGovernment;
   int teamPlayedOpposition;
+  bool autoQualified = false;
 
   DebateTeam({
     required this.teamID,
@@ -25,6 +26,7 @@ class DebateTeam {
     this.teamStatus = DebateTeamStatus.notPlayed,
     this.teamPlayedGovernment = 0,
     this.teamPlayedOpposition = 0,
+    this.autoQualified = false,
   });
 
   void increaseTeamScore(int score) {
@@ -43,10 +45,6 @@ class DebateTeam {
 
   void updateTeamName(String newName) {
     teamName = newName;
-  }
-
-  void updateTeamMembers(List<dynamic> newMembers) {
-    teamMembers = newMembers;
   }
 
   void teamPlaysAsGovernment() {
@@ -69,6 +67,7 @@ class DebateTeam {
       'teamStatus': teamStatus.index,
       'teamPlayedGovernment': teamPlayedGovernment,
       'teamPlayedOpposition': teamPlayedOpposition,
+      'autoQualified': autoQualified,
     };
   }
 
@@ -89,6 +88,7 @@ class DebateTeam {
       teamStatus: DebateTeamStatus.values[json['teamStatus'] ?? 0],
       teamPlayedGovernment: json['teamPlayedGovernment'] ?? 0,
       teamPlayedOpposition: json['teamPlayedOpposition'] ?? 0,
+      autoQualified: json['autoQualified'] ?? false,
     );
   }
 }

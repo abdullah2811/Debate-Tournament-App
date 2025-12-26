@@ -2,8 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:debate_tournament_app/models/tournament.dart';
 import 'package:debate_tournament_app/models/user.dart';
 import 'package:debate_tournament_app/screens/add_teams_screen.dart';
-import 'package:debate_tournament_app/screens/next_round_details.dart';
+import 'package:debate_tournament_app/screens/matchup_screen.dart';
 import 'package:debate_tournament_app/screens/tournament_details_screen.dart';
+import 'package:debate_tournament_app/screens/tournament_roadmap_screen.dart';
 import 'package:flutter/material.dart';
 
 class OwnTournamentsScreen extends StatefulWidget {
@@ -18,7 +19,8 @@ class OwnTournamentsScreen extends StatefulWidget {
 
 class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Tournament> _allTournaments = [];
+  List<Tournament> _allTournaments =
+      []; // It will be used when sorting or filtering implementations are added
   List<Tournament> _filteredTournaments = [];
   bool _isLoading = false;
 
@@ -178,13 +180,11 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     String status;
     if (isUpcoming) {
       status = 'Upcoming';
-    } else if (isCompleted) {
+    } else if (isCompleted || tournament.isClosed) {
       status = 'Completed';
     } else {
       status = 'Active';
     }
-
-    final segmentName = tournament.currentSegment;
 
     final matchesCount = tournament.currentMatches?.length ?? 0;
     final additionClosed = tournament.teamAdditionClosed;
@@ -244,6 +244,20 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                     ),
                   ),
                   const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _editTournament(tournament),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    onPressed: () => _confirmDeleteTournament(tournament),
+                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  ),
+                  const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -295,7 +309,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   Icon(Icons.timeline, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    segmentName,
+                    'Segment: ${tournament.currentSegment?.segmentName ?? 'Registration'}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -330,7 +344,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => additionClosed
-                              ? const NextRoundDetailsScreen()
+                              ? MatchupScreen(currentTournament: tournament)
                               : AddTeamsScreen(currentTournament: tournament),
                         ),
                       );
@@ -346,7 +360,22 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                     label: Text(additionClosed ? 'Manage' : 'Add Teams'),
                     style: TextButton.styleFrom(foregroundColor: Colors.blue),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TournamentRoadmapScreen(
+                              currentTournament: tournament),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Configure Rounds'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                  ),
+                  const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -365,6 +394,236 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _editTournament(Tournament tournament) async {
+    final nameCtrl = TextEditingController(text: tournament.tournamentName);
+    final clubCtrl = TextEditingController(text: tournament.tournamentClubName);
+    final locationCtrl =
+        TextEditingController(text: tournament.tournamentLocation ?? '');
+    final descriptionCtrl =
+        TextEditingController(text: tournament.tournamentDescription ?? '');
+    final maxTeamsCtrl =
+        TextEditingController(text: tournament.maxTeams?.toString() ?? '');
+    final prizePoolCtrl =
+        TextEditingController(text: tournament.prizePool?.toString() ?? '');
+
+    DateTime startDate = tournament.tournamentStartingDate;
+    DateTime endDate = tournament.tournamentEndingDate;
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(builder: (statefulContext, setLocalState) {
+          Future<void> pickStart() async {
+            final picked = await showDatePicker(
+              context: dialogContext,
+              initialDate: startDate,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              setLocalState(() => startDate = picked);
+            }
+          }
+
+          Future<void> pickEnd() async {
+            final picked = await showDatePicker(
+              context: dialogContext,
+              initialDate: endDate,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              setLocalState(() => endDate = picked);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Edit Tournament'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTextFieldCtrl(nameCtrl, 'Tournament Name', Icons.title),
+                  const SizedBox(height: 10),
+                  _buildTextFieldCtrl(clubCtrl, 'Club/Organizer', Icons.school),
+                  const SizedBox(height: 10),
+                  _buildTextFieldCtrl(
+                      locationCtrl, 'Location', Icons.location_on),
+                  const SizedBox(height: 10),
+                  _buildTextFieldCtrl(
+                      descriptionCtrl, 'Description', Icons.description,
+                      maxLines: 3),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: pickStart,
+                          icon: const Icon(Icons.date_range),
+                          label: Text(
+                              'Start: ${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: pickEnd,
+                          icon: const Icon(Icons.event),
+                          label: Text(
+                              'End: ${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTextFieldCtrl(
+                    maxTeamsCtrl,
+                    'Max Teams (optional)',
+                    Icons.groups,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTextFieldCtrl(
+                    prizePoolCtrl,
+                    'Prize Pool (optional)',
+                    Icons.attach_money,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  // Basic validation
+                  if (nameCtrl.text.trim().isEmpty ||
+                      clubCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                          content: Text('Name and Club are required.')),
+                    );
+                    return;
+                  }
+
+                  // Apply edits to model
+                  tournament.tournamentName = nameCtrl.text.trim();
+                  tournament.tournamentClubName = clubCtrl.text.trim();
+                  tournament.tournamentLocation =
+                      locationCtrl.text.trim().isEmpty
+                          ? null
+                          : locationCtrl.text.trim();
+                  tournament.tournamentDescription =
+                      descriptionCtrl.text.trim().isEmpty
+                          ? null
+                          : descriptionCtrl.text.trim();
+                  tournament.tournamentStartingDate = startDate;
+                  tournament.tournamentEndingDate = endDate;
+
+                  final maxTeamsVal = int.tryParse(maxTeamsCtrl.text.trim());
+                  final prizePoolVal =
+                      double.tryParse(prizePoolCtrl.text.trim());
+
+                  tournament.maxTeams = maxTeamsVal;
+                  tournament.prizePool = prizePoolVal;
+
+                  try {
+                    await tournament.updateTournament();
+                    if (mounted) {
+                      Navigator.pop(dialogContext);
+                      _loadTournaments();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Tournament updated.')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Failed to update: ' + e.toString())),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  void _confirmDeleteTournament(Tournament tournament) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Tournament'),
+        content: Text(
+            'Are you sure you want to delete "${tournament.tournamentName}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                // deleteTournament() is async void; call and then reload
+                tournament.deleteTournament();
+                await Future.delayed(const Duration(milliseconds: 300));
+                _loadTournaments();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Tournament deleted.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Failed to delete tournament: ' + e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextFieldCtrl(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.white,
       ),
     );
   }

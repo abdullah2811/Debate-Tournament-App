@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'debate_team.dart';
 import 'debate_match.dart';
 import 'debater.dart';
+import 'tournament_segment.dart';
 
 enum TournamentFormat {
   asianParliamentary,
@@ -24,13 +25,16 @@ class Tournament {
   int? maxTeams;
   double? prizePool;
   TournamentFormat tournamentFormat;
-  String currentSegment;
+  TournamentSegment? currentSegment;
   String? createdByUserID;
   DateTime? createdAt;
   List<Debater>? debatersInTheTournament;
   List<DebateTeam>? teamsInTheTournament;
+  List<DebateTeam>? autoQualifiedTeams;
   List<DebateMatch>? currentMatches;
+  List<TournamentSegment>? tournamentSegments;
   bool teamAdditionClosed = false;
+  bool isClosed = false;
 
   Tournament({
     required this.tournamentName,
@@ -44,13 +48,16 @@ class Tournament {
     this.maxTeams,
     this.prizePool,
     this.tournamentFormat = TournamentFormat.asianParliamentary,
-    this.currentSegment = '1st Tab Round',
+    this.currentSegment,
     this.createdByUserID,
     this.createdAt,
     this.debatersInTheTournament,
     this.teamsInTheTournament,
+    this.autoQualifiedTeams,
+    this.tournamentSegments,
     this.currentMatches,
     this.teamAdditionClosed = false,
+    this.isClosed = false,
   });
 
   CollectionReference<Map<String, dynamic>> get _tournamentsCollection =>
@@ -120,11 +127,10 @@ class Tournament {
     tournament.teamsInTheTournament!.removeWhere((t) =>
         t.teamName == team.teamName &&
         t.teamMembers.length == 3 &&
-        t.teamMembers[0].name == team.teamMembers[0].name &&
-        t.teamMembers[1].name == team.teamMembers[1].name &&
-        t.teamMembers[2].name == team.teamMembers[2].name);
+        t.teamMembers[0].debaterID == team.teamMembers[0].debaterID &&
+        t.teamMembers[1].debaterID == team.teamMembers[1].debaterID &&
+        t.teamMembers[2].debaterID == team.teamMembers[2].debaterID);
     tournament.numberOfTeamsInTournament--;
-    tournament.updateTournament();
     //Remove the debaters from the debaters list
     tournament.debatersInTheTournament ??= [];
     tournament.debatersInTheTournament!.removeWhere((debater) =>
@@ -132,6 +138,47 @@ class Tournament {
         debater.debaterID == team.teamMembers[1].debaterID ||
         debater.debaterID == team.teamMembers[2].debaterID);
     tournament.updateTournament();
+  }
+
+  void addAutoQualifiedTeam(DebateTeam team) {
+    autoQualifiedTeams ??= [];
+    autoQualifiedTeams!.add(team);
+    updateTournament();
+  }
+
+  void closeTeamAddition() {
+    teamAdditionClosed = true;
+    updateTournament();
+  }
+
+  void closeTournament() {
+    isClosed = true;
+    updateTournament();
+  }
+
+  // void addSegment(TournamentSegment segment) {
+  //   tournamentSegments ??= [];
+  //   tournamentSegments!.add(segment);
+  //   updateTournament();
+  // }
+
+  // void removeSegment(TournamentSegment segment) {
+  //   tournamentSegments ??= [];
+  //   tournamentSegments!.removeWhere((s) => s.segmentID == segment.segmentID);
+  //   updateTournament();
+  // }
+
+  void updateCurrentSegment(TournamentSegment segment) {
+    currentSegment = segment;
+    updateTournament();
+  }
+
+  Future<void> deleteTournament() async {
+    try {
+      await _tournamentsCollection.doc(tournamentID).delete();
+    } catch (e) {
+      throw Exception('Error deleting tournament: $e');
+    }
   }
 
   // Convert to JSON for storage
@@ -144,7 +191,7 @@ class Tournament {
       'tournamentDescription': tournamentDescription,
       'tournamentStartingDate': tournamentStartingDate.toIso8601String(),
       'tournamentEndingDate': tournamentEndingDate.toIso8601String(),
-      'currentSegment': currentSegment,
+      'currentSegment': currentSegment?.toJson(),
       'numberOfTeamsInTournament': numberOfTeamsInTournament,
       'maxTeams': maxTeams,
       'prizePool': prizePool,
@@ -155,8 +202,13 @@ class Tournament {
           debatersInTheTournament?.map((debater) => debater.toJson()).toList(),
       'teamsInTheTournament':
           teamsInTheTournament?.map((team) => team.toJson()).toList(),
+      'autoQualifiedTeams':
+          autoQualifiedTeams?.map((team) => team.toJson()).toList(),
+      'tournamentSegments':
+          tournamentSegments?.map((segment) => segment.toJson()).toList(),
       'currentMatches': currentMatches?.map((match) => match.toJson()).toList(),
       'teamAdditionClosed': teamAdditionClosed,
+      'isClosed': isClosed,
     };
   }
 
@@ -182,7 +234,15 @@ class Tournament {
           parseDate(json['tournamentStartingDate']) ?? DateTime.now(),
       tournamentEndingDate:
           parseDate(json['tournamentEndingDate']) ?? DateTime.now(),
-      currentSegment: json['currentSegment'] ?? '1st Tab Round',
+      // Handle both legacy String and new TournamentSegment object formats
+      currentSegment: json['currentSegment'] != null
+          ? (json['currentSegment'] is String
+              ? TournamentSegment(
+                  segmentName: json['currentSegment'],
+                  segmentID: 0,
+                )
+              : TournamentSegment.fromJson(json['currentSegment']))
+          : null,
       numberOfTeamsInTournament: json['numberOfTeamsInTournament'] ?? 0,
       maxTeams: json['maxTeams'],
       prizePool: json['prizePool']?.toDouble(),
@@ -195,11 +255,17 @@ class Tournament {
       teamsInTheTournament: (json['teamsInTheTournament'] as List?)
           ?.map((teamJson) => DebateTeam.fromJson(teamJson))
           .toList(),
+      autoQualifiedTeams: (json['autoQualifiedTeams'] as List?)
+          ?.map((teamJson) => DebateTeam.fromJson(teamJson))
+          .toList(),
       currentMatches: (json['currentMatches'] as List?)
           ?.map((matchJson) => DebateMatch.fromJson(matchJson))
           .toList(),
-      // Defaults to false if missing
-      teamAdditionClosed: json['teamAdditionClosed'] == true,
+      tournamentSegments: (json['tournamentSegments'] as List?)
+          ?.map((segmentJson) => TournamentSegment.fromJson(segmentJson))
+          .toList(),
+      teamAdditionClosed: json['teamAdditionClosed'] ?? false,
+      isClosed: json['isClosed'] ?? false,
     );
   }
 }

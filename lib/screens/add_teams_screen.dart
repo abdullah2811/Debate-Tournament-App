@@ -76,11 +76,9 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
       teamMembers: debaters,
     );
 
-    // Add team to tournament using tournament method
-    widget.currentTournament.addTeam(widget.currentTournament, newTeam);
-
     setState(() {
       _teams.add(newTeam);
+      widget.currentTournament.addTeam(widget.currentTournament, newTeam);
       _teamNameController.clear();
       _debaterOneController.clear();
       _debaterTwoController.clear();
