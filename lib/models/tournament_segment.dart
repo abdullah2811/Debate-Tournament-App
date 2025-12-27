@@ -4,6 +4,7 @@ class TournamentSegment {
   List<dynamic>? teamsInThisSegment; // Will contain DebateTeam objects
   int numberOfTeamsInSegment;
   int numberOfTeamsAutoQualifiedForNextRound = 0;
+  bool isTabRound;
 
   TournamentSegment({
     required this.segmentName,
@@ -11,6 +12,7 @@ class TournamentSegment {
     this.teamsInThisSegment,
     this.numberOfTeamsInSegment = 0,
     this.numberOfTeamsAutoQualifiedForNextRound = 0,
+    this.isTabRound = true,
   });
 
   // Convert to JSON for storage
@@ -19,19 +21,21 @@ class TournamentSegment {
       'segmentName': segmentName,
       'segmentID': segmentID,
       // Support both model objects and raw maps already coming from Firestore
-      'teamsInThisSegment': teamsInThisSegment!.map((team) {
-        if (team is Map<String, dynamic>) {
-          return team;
-        }
-        try {
-          return team.toJson();
-        } catch (_) {
-          return team;
-        }
-      }).toList(),
+      'teamsInThisSegment': teamsInThisSegment?.map((team) {
+            if (team is Map<String, dynamic>) {
+              return team;
+            }
+            try {
+              return team.toJson();
+            } catch (_) {
+              return team;
+            }
+          }).toList() ??
+          [],
       'numberOfTeamsInSegment': numberOfTeamsInSegment,
       'numberOfTeamsAutoQualifiedForNextRound':
           numberOfTeamsAutoQualifiedForNextRound,
+      'isTabRound': isTabRound,
     };
   }
 
@@ -47,6 +51,7 @@ class TournamentSegment {
       numberOfTeamsInSegment: json['numberOfTeamsInSegment'] ?? 0,
       numberOfTeamsAutoQualifiedForNextRound:
           json['numberOfTeamsAutoQualifiedForNextRound'] ?? 0,
+      isTabRound: json['isTabRound'] ?? true,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:debate_tournament_app/models/app.dart';
 import 'package:debate_tournament_app/models/tournament.dart';
 import 'package:flutter/material.dart';
 import '../models/debate_team.dart';
@@ -65,9 +66,21 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
     }
 
     final debaters = <Debater>[
-      Debater(debaterID: _debaterIdCounter++, name: deb1),
-      Debater(debaterID: _debaterIdCounter++, name: deb2),
-      Debater(debaterID: _debaterIdCounter++, name: deb3),
+      Debater(
+          debaterID: _debaterIdCounter++,
+          name: deb1,
+          teamName: teamName,
+          teamID: _teamIdCounter),
+      Debater(
+          debaterID: _debaterIdCounter++,
+          name: deb2,
+          teamName: teamName,
+          teamID: _teamIdCounter),
+      Debater(
+          debaterID: _debaterIdCounter++,
+          name: deb3,
+          teamName: teamName,
+          teamID: _teamIdCounter),
     ];
 
     final newTeam = DebateTeam(
@@ -295,6 +308,7 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
     try {
       widget.currentTournament.teamAdditionClosed = true;
       await widget.currentTournament.updateTournament();
+      await App.incrementTeamsAndDebaters(_teams.length, _teams.length * 3);
       _showSnack('Team list locked.');
       Navigator.pop(context, true); // Return true to signal refresh needed
     } catch (e) {

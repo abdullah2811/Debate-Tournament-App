@@ -3,12 +3,16 @@ class Debater {
   String name;
   String? userID;
   double individualScore;
+  String teamName;
+  int teamID;
 
   Debater({
     required this.debaterID,
     required this.name,
     this.userID = '',
     this.individualScore = 0.0,
+    this.teamName = '',
+    this.teamID = 0,
   });
 
   void increaseIndividualScore(int score) {
@@ -30,6 +34,8 @@ class Debater {
       'name': name,
       'userID': userID,
       'individualScore': individualScore,
+      'teamName': teamName,
+      'teamID': teamID,
     };
   }
 
@@ -40,6 +46,8 @@ class Debater {
       name: json['name'] ?? '',
       userID: json['userID'] ?? '',
       individualScore: (json['individualScore'] ?? 0.0).toDouble(),
+      teamName: json['teamName'] ?? '',
+      teamID: json['teamID'] ?? 0,
     );
   }
 }

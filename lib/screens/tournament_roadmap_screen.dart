@@ -50,13 +50,13 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
   }
 
   Map<String, dynamic> get _segmentDefaults => {
-        'Round 1 Tab': {'teams': all, 'qualified': 0},
-        'Round 2 Tab': {'teams': all, 'qualified': 0},
-        'Round 3 Tab': {'teams': all, 'qualified': 0},
-        'Pre-Quarter': {'teams': 16, 'qualified': 0},
-        'Quarter': {'teams': 8, 'qualified': 0},
-        'Semi': {'teams': 4, 'qualified': 0},
-        'Final': {'teams': 2, 'qualified': 0},
+        'Round 1 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
+        'Round 2 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
+        'Round 3 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
+        'Pre-Quarter': {'teams': 16, 'qualified': 0, 'isTabRound': false},
+        'Quarter': {'teams': 8, 'qualified': 0, 'isTabRound': false},
+        'Semi': {'teams': 4, 'qualified': 0, 'isTabRound': false},
+        'Final': {'teams': 2, 'qualified': 0, 'isTabRound': false},
       };
 
   @override
@@ -351,6 +351,9 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
     });
 
     try {
+      // Set the current segment to the first one if not already set
+      widget.currentTournament.currentSegment ??= _segments.first;
+
       await widget.currentTournament.updateTournament();
       _showSnack('Roadmap saved successfully.');
       Navigator.pop(context, true);

@@ -244,19 +244,22 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                     ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _editTournament(tournament),
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                  ),
+                  if (tournament.isClosed == false)
+                    TextButton.icon(
+                      onPressed: () => _editTournament(tournament),
+                      icon: const Icon(Icons.edit, size: 18),
+                      label: const Text('Edit'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                    ),
                   const SizedBox(width: 4),
-                  TextButton.icon(
-                    onPressed: () => _confirmDeleteTournament(tournament),
-                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  ),
+                  if (tournament.isClosed == false)
+                    TextButton.icon(
+                      onPressed: () => _confirmDeleteTournament(tournament),
+                      icon:
+                          const Icon(Icons.delete, size: 18, color: Colors.red),
+                      label: const Text('Delete'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    ),
                   const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -338,43 +341,56 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => additionClosed
-                              ? MatchupScreen(currentTournament: tournament)
-                              : AddTeamsScreen(currentTournament: tournament),
-                        ),
-                      );
-                      // Refresh tournaments list if changes were made
-                      if (result == true) {
-                        _loadTournaments();
-                      }
-                    },
-                    icon: Icon(
-                      additionClosed ? Icons.settings : Icons.build,
-                      size: 18,
+                  if (tournament.isClosed == false)
+                    TextButton.icon(
+                      onPressed: () async {
+                        // Refresh tournament before navigation to get latest segments and currentSegment
+                        if (additionClosed) {
+                          final refreshed = await Tournament.getTournament(
+                              tournament.tournamentID);
+                          if (refreshed != null && mounted) {
+                            tournament = refreshed;
+                          }
+                        }
+
+                        if (!mounted) return;
+
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => additionClosed
+                                ? MatchupScreen(currentTournament: tournament)
+                                : AddTeamsScreen(currentTournament: tournament),
+                          ),
+                        );
+                        // Refresh tournaments list if changes were made
+                        if (result == true) {
+                          _loadTournaments();
+                        }
+                      },
+                      icon: Icon(
+                        additionClosed ? Icons.settings : Icons.build,
+                        size: 18,
+                      ),
+                      label: Text(additionClosed ? 'Manage' : 'Add Teams'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
-                    label: Text(additionClosed ? 'Manage' : 'Add Teams'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                  ),
                   const SizedBox(width: 4),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TournamentRoadmapScreen(
-                              currentTournament: tournament),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: const Text('Configure Rounds'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                  ),
+                  if (tournament.isClosed == false)
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TournamentRoadmapScreen(
+                                currentTournament: tournament),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Configure Rounds'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                    ),
                   const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: () {

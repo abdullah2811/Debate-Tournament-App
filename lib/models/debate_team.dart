@@ -1,3 +1,5 @@
+import 'debater.dart';
+
 enum DebateTeamStatus {
   notPlayed,
   win,
@@ -60,7 +62,14 @@ class DebateTeam {
     return {
       'teamName': teamName,
       'teamID': teamID,
-      'teamMembers': teamMembers.map((member) => member.toJson()).toList(),
+      'teamMembers': teamMembers.map((member) {
+        if (member is Debater) {
+          return member.toJson();
+        } else if (member is Map<String, dynamic>) {
+          return member;
+        }
+        return member.toJson();
+      }).toList(),
       'teamWins': teamWins,
       'teamLosses': teamLosses,
       'teamScore': teamScore,
@@ -77,10 +86,12 @@ class DebateTeam {
     return DebateTeam(
       teamID: json['teamID'] ?? 0,
       teamName: json['teamName'] ?? '',
-      teamMembers: (json['teamMembers'] as List?)
-              ?.map((memberJson) =>
-                  memberJson) // Will need proper Debater.fromJson when imported
-              .toList() ??
+      teamMembers: (json['teamMembers'] as List?)?.map((memberJson) {
+            if (memberJson is Map<String, dynamic>) {
+              return Debater.fromJson(memberJson);
+            }
+            return memberJson;
+          }).toList() ??
           [],
       teamScore: (json['teamScore'] ?? 0.0).toDouble(),
       teamWins: json['teamWins'] ?? 0,

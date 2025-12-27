@@ -1,3 +1,4 @@
+import 'package:debate_tournament_app/models/app.dart';
 import 'package:debate_tournament_app/screens/adjudicator_screen.dart';
 import 'package:debate_tournament_app/screens/create_a_tournament_screen.dart';
 import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
@@ -116,7 +117,7 @@ class DashScreen extends StatelessWidget {
                       child: _buildStatCard(
                         icon: Icons.sports,
                         title: 'Active',
-                        value: '5',
+                        value: '12',
                         subtitle: 'Tournaments',
                         color: Colors.green,
                       ),

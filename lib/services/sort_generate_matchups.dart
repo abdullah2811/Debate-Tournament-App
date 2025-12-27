@@ -21,22 +21,77 @@ import '../models/tournament_segment.dart';
 
   //Sort teams based on wins (first priority) and teamScore (second priority)
   if (roundIndex != 0) {
-    teams.sort((a, b) {
-      if (b.teamWins != a.teamWins) {
-        return b.teamWins.compareTo(a.teamWins);
-      } else {
-        return b.teamScore.compareTo(a.teamScore);
+    if (segment.isTabRound) {
+      // split teams based on their status in the previous round and sort the winners and losers separately and create matchups within each group
+      List<DebateTeam> winners = teams
+          .where((team) => team.teamStatus == DebateTeamStatus.win)
+          .toList();
+      List<DebateTeam> losers = teams
+          .where((team) => team.teamStatus == DebateTeamStatus.lose)
+          .toList();
+      winners.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+      losers.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+      List<DebateMatch> winnerMatches = [];
+      List<DebateMatch> loserMatches = [];
+      int wStart = 0, wEnd = winners.length - 1;
+      int lStart = 0, lEnd = losers.length - 1;
+      while (wStart < wEnd) {
+        DebateTeam teamA = winners[wStart];
+        DebateTeam teamB = winners[wEnd];
+
+        DebateMatch match = DebateMatch(
+          teamA: teamA,
+          teamB: teamB,
+        );
+
+        winnerMatches.add(match);
+        wStart++;
+        wEnd--;
       }
-    });
+      while (lStart < lEnd) {
+        DebateTeam teamA = losers[lStart];
+        DebateTeam teamB = losers[lEnd];
+
+        DebateMatch match = DebateMatch(
+          teamA: teamA,
+          teamB: teamB,
+        );
+
+        loserMatches.add(match);
+        lStart++;
+        lEnd--;
+      }
+      matches = [...winnerMatches, ...loserMatches];
+      return (matches, disqualifiedTeams);
+    } else {
+      //For elimination rounds, sort by teamWins first, then by teamScore
+      teams.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+    }
   }
 
-  if (auto != 0) {
-    start = auto;
-    end += auto;
-    //Add first 'auto' teams to the tournamnt's autoQualifiedTeams list
-    for (int i = 0; i < auto; i++) {
-      currentTournament.addAutoQualifiedTeam(teams[i]);
-    }
+  start = auto;
+  end += auto;
+  //Add first 'auto' teams to the tournamnt's autoQualifiedTeams list
+  for (int i = 0; i < auto; i++) {
+    currentTournament.addAutoQualifiedTeam(teams[i]);
   }
 
   for (int i = end + 1; i < teams.length; i++) {

@@ -1,4 +1,5 @@
 import 'debate_team.dart';
+import 'tournament.dart';
 
 class DebateMatch {
   DebateTeam teamA, teamB;
@@ -15,25 +16,72 @@ class DebateMatch {
     this.venue,
   });
 
-  void submitScores(List<int> scoresA, List<int> scoresB, int rebA, int rebB) {
+  void submitScores(List<int> scoresA, List<int> scoresB, int rebA, int rebB, Tournament tournament) {
+    // Update team members' scores in the match
     for (int i = 0; i < 3; i++) {
-      teamA.teamMembers[i].increaseDebaterScore(scoresA[i]);
-      teamB.teamMembers[i].increaseDebaterScore(scoresB[i]);
+      teamA.teamMembers[i].increaseIndividualScore(scoresA[i]);
+      teamB.teamMembers[i].increaseIndividualScore(scoresB[i]);
     }
+
+    // Also update the corresponding debaters in the tournament's master list
+    tournament.debatersInTheTournament ??= [];
+    for (int i = 0; i < 3; i++) {
+      // Find and update team A debaters
+      final debaterAId = teamA.teamMembers[i].debaterID;
+      final tournamentDebaterA = tournament.debatersInTheTournament!.firstWhere(
+        (d) => d.debaterID == debaterAId,
+        orElse: () => teamA.teamMembers[i],
+      );
+      tournamentDebaterA.increaseIndividualScore(scoresA[i]);
+
+      // Find and update team B debaters
+      final debaterBId = teamB.teamMembers[i].debaterID;
+      final tournamentDebaterB = tournament.debatersInTheTournament!.firstWhere(
+        (d) => d.debaterID == debaterBId,
+        orElse: () => teamB.teamMembers[i],
+      );
+      tournamentDebaterB.increaseIndividualScore(scoresB[i]);
+    }
+
+    // Update teams in the tournament's team list
+    tournament.teamsInTheTournament ??= [];
+    final tournamentTeamA = tournament.teamsInTheTournament!.firstWhere(
+      (t) => t.teamID == teamA.teamID,
+      orElse: () => teamA,
+    );
+    final tournamentTeamB = tournament.teamsInTheTournament!.firstWhere(
+      (t) => t.teamID == teamB.teamID,
+      orElse: () => teamB,
+    );
+
     int totalA = scoresA[0] + scoresA[1] + scoresA[2] + rebA;
     int totalB = scoresB[0] + scoresB[1] + scoresB[2] + rebB;
+    
+    // Update both match teams and tournament teams
     teamA.increaseTeamScore(totalA);
     teamB.increaseTeamScore(totalB);
+    tournamentTeamA.increaseTeamScore(totalA);
+    tournamentTeamB.increaseTeamScore(totalB);
+    
     if (totalA > totalB) {
       teamA.teamWinsADebate();
       teamB.teamLosesADebate();
+      tournamentTeamA.teamWinsADebate();
+      tournamentTeamB.teamLosesADebate();
     } else if (totalB > totalA) {
       teamB.teamWinsADebate();
       teamA.teamLosesADebate();
+      tournamentTeamB.teamWinsADebate();
+      tournamentTeamA.teamLosesADebate();
     } else {
       throw Exception(
           "Check Tie: ${teamA.teamName} scores $totalA vs ${teamB.teamName} scores $totalB");
     }
+    
+    // Store the individual scores for this match
+    teamAScores = scoresA;
+    teamBScores = scoresB;
+    
     isCompleted = true;
   }
 

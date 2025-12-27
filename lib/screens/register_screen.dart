@@ -1,3 +1,4 @@
+import 'package:debate_tournament_app/models/app.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -102,6 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         if (!mounted) return;
+        await App.incrementUsersRegistered();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Registration successful!'),
