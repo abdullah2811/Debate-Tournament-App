@@ -1,7 +1,11 @@
+import 'package:debate_tournament_app/models/debate_match.dart';
+import 'package:debate_tournament_app/models/debate_team.dart';
+
 class TournamentSegment {
   String segmentName;
   int segmentID;
-  List<dynamic>? teamsInThisSegment; // Will contain DebateTeam objects
+  List<DebateTeam>? teamsInThisSegment; // Will contain DebateTeam objects
+  List<DebateMatch>? matchesInThisSegment;
   int numberOfTeamsInSegment;
   int numberOfTeamsAutoQualifiedForNextRound = 0;
   bool isTabRound;
@@ -10,10 +14,17 @@ class TournamentSegment {
     required this.segmentName,
     required this.segmentID,
     this.teamsInThisSegment,
+    this.matchesInThisSegment,
     this.numberOfTeamsInSegment = 0,
     this.numberOfTeamsAutoQualifiedForNextRound = 0,
     this.isTabRound = true,
   });
+
+  void addMatchesToSegment(
+      List<DebateMatch> matches, TournamentSegment segment) {
+    matchesInThisSegment ??= [];
+    matchesInThisSegment!.addAll(matches);
+  }
 
   // Convert to JSON for storage
   Map<String, dynamic> toJson() {
@@ -32,6 +43,17 @@ class TournamentSegment {
             }
           }).toList() ??
           [],
+      'matchesInThisSegment': matchesInThisSegment?.map((match) {
+            if (match is Map<String, dynamic>) {
+              return match;
+            }
+            try {
+              return match.toJson();
+            } catch (_) {
+              return match;
+            }
+          }).toList() ??
+          [],
       'numberOfTeamsInSegment': numberOfTeamsInSegment,
       'numberOfTeamsAutoQualifiedForNextRound':
           numberOfTeamsAutoQualifiedForNextRound,
@@ -45,7 +67,11 @@ class TournamentSegment {
       segmentName: json['segmentName'] ?? '',
       segmentID: json['segmentID'] ?? 0,
       teamsInThisSegment: (json['teamsInThisSegment'] as List?)
-              ?.map((teamJson) => teamJson)
+              ?.map((teamJson) => DebateTeam.fromJson(teamJson))
+              .toList() ??
+          [],
+      matchesInThisSegment: (json['matchesInThisSegment'] as List?)
+              ?.map((matchJson) => DebateMatch.fromJson(matchJson))
               .toList() ??
           [],
       numberOfTeamsInSegment: json['numberOfTeamsInSegment'] ?? 0,

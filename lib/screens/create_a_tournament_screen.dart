@@ -25,7 +25,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
   late TextEditingController _prizePoolController;
   late TextEditingController _maxTeamsController;
 
-  String _selectedFormat = 'British Parliamentary';
+  String _selectedFormat = 'Asian Parliamentary';
   bool _agreeToTerms = false;
   bool _isLoading = false;
 
@@ -158,7 +158,7 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
         tournamentStartingDate: startDate,
         tournamentEndingDate: endDate,
         tournamentFormat:
-            formatMap[_selectedFormat] ?? TournamentFormat.britishParliamentary,
+            formatMap[_selectedFormat] ?? TournamentFormat.asianParliamentary,
         maxTeams: maxTeamsValue,
         prizePool: prizePoolValue,
         createdByUserID: username,

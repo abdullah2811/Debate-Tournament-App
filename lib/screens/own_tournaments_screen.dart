@@ -351,6 +351,9 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                           if (refreshed != null && mounted) {
                             tournament = refreshed;
                           }
+                          if (tournament.currentSegmentIndex == -1) {
+                            tournament.proceedToNextSegment();
+                          }
                         }
 
                         if (!mounted) return;
@@ -372,7 +375,8 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                         additionClosed ? Icons.settings : Icons.build,
                         size: 18,
                       ),
-                      label: Text(additionClosed ? 'Manage' : 'Add Teams'),
+                      label: Text(
+                          additionClosed ? 'Generate Matchups' : 'Add Teams'),
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
                   const SizedBox(width: 4),
@@ -565,8 +569,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text('Failed to update: ' + e.toString())),
+                        SnackBar(content: Text('Failed to update: $e')),
                       );
                     }
                   }
@@ -609,9 +612,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            'Failed to delete tournament: ' + e.toString())),
+                    SnackBar(content: Text('Failed to delete tournament: $e')),
                   );
                 }
               }

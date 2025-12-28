@@ -4,6 +4,7 @@ import 'tournament.dart';
 class DebateMatch {
   DebateTeam teamA, teamB;
   List<int> teamAScores, teamBScores;
+  int teamARebuttal, teamBRebuttal;
   bool isCompleted;
   int? venue;
 
@@ -12,11 +13,14 @@ class DebateMatch {
     required this.teamB,
     this.teamAScores = const [0, 0, 0],
     this.teamBScores = const [0, 0, 0],
+    this.teamARebuttal = 0,
+    this.teamBRebuttal = 0,
     this.isCompleted = false,
     this.venue,
   });
 
-  void submitScores(List<int> scoresA, List<int> scoresB, int rebA, int rebB, Tournament tournament) {
+  void submitScores(List<int> scoresA, List<int> scoresB, int rebA, int rebB,
+      Tournament tournament) {
     // Update team members' scores in the match
     for (int i = 0; i < 3; i++) {
       teamA.teamMembers[i].increaseIndividualScore(scoresA[i]);
@@ -56,13 +60,11 @@ class DebateMatch {
 
     int totalA = scoresA[0] + scoresA[1] + scoresA[2] + rebA;
     int totalB = scoresB[0] + scoresB[1] + scoresB[2] + rebB;
-    
+
     // Update both match teams and tournament teams
-    teamA.increaseTeamScore(totalA);
-    teamB.increaseTeamScore(totalB);
     tournamentTeamA.increaseTeamScore(totalA);
     tournamentTeamB.increaseTeamScore(totalB);
-    
+
     if (totalA > totalB) {
       teamA.teamWinsADebate();
       teamB.teamLosesADebate();
@@ -77,11 +79,13 @@ class DebateMatch {
       throw Exception(
           "Check Tie: ${teamA.teamName} scores $totalA vs ${teamB.teamName} scores $totalB");
     }
-    
+
     // Store the individual scores for this match
     teamAScores = scoresA;
     teamBScores = scoresB;
-    
+    teamARebuttal = rebA;
+    teamBRebuttal = rebB;
+
     isCompleted = true;
   }
 

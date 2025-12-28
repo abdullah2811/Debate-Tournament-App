@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:debate_tournament_app/services/Generator.dart';
 import 'debate_team.dart';
 import 'debate_match.dart';
 import 'debater.dart';
@@ -26,6 +27,7 @@ class Tournament {
   double? prizePool;
   TournamentFormat tournamentFormat;
   TournamentSegment? currentSegment;
+  int currentSegmentIndex = -1;
   String? createdByUserID;
   DateTime? createdAt;
   List<Debater>? debatersInTheTournament;
@@ -49,6 +51,7 @@ class Tournament {
     this.prizePool,
     this.tournamentFormat = TournamentFormat.asianParliamentary,
     this.currentSegment,
+    this.currentSegmentIndex = -1,
     this.createdByUserID,
     this.createdAt,
     this.debatersInTheTournament,
@@ -173,6 +176,19 @@ class Tournament {
     updateTournament();
   }
 
+  void proceedToNextSegment() {
+    if (tournamentSegments != null &&
+        currentSegmentIndex < (tournamentSegments!.length - 1)) {
+      currentSegmentIndex++;
+      currentSegment = tournamentSegments![currentSegmentIndex];
+      currentSegment?.matchesInThisSegment = Generator()
+          .generateMatchups(this, currentSegment!, teamsInTheTournament ?? [])
+          .$1;
+
+      updateTournament();
+    }
+  }
+
   Future<void> deleteTournament() async {
     try {
       await _tournamentsCollection.doc(tournamentID).delete();
@@ -192,6 +208,7 @@ class Tournament {
       'tournamentStartingDate': tournamentStartingDate.toIso8601String(),
       'tournamentEndingDate': tournamentEndingDate.toIso8601String(),
       'currentSegment': currentSegment?.toJson(),
+      'currentSegmentIndex': currentSegmentIndex,
       'numberOfTeamsInTournament': numberOfTeamsInTournament,
       'maxTeams': maxTeams,
       'prizePool': prizePool,
@@ -243,6 +260,7 @@ class Tournament {
                 )
               : TournamentSegment.fromJson(json['currentSegment']))
           : null,
+      currentSegmentIndex: json['currentSegmentIndex'] ?? -1,
       numberOfTeamsInTournament: json['numberOfTeamsInTournament'] ?? 0,
       maxTeams: json['maxTeams'],
       prizePool: json['prizePool']?.toDouble(),

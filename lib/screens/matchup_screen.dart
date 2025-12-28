@@ -1,7 +1,5 @@
 import 'package:debate_tournament_app/models/debate_match.dart';
 import 'package:debate_tournament_app/models/tournament.dart';
-import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
-import 'package:debate_tournament_app/services/sort_generate_matchups.dart';
 import 'package:flutter/material.dart';
 
 class MatchupScreen extends StatefulWidget {
@@ -25,42 +23,11 @@ class _MatchupScreenState extends State<MatchupScreen> {
   }
 
   void _generateMatches() {
-    try {
-      // Get current segment and teams
-      final segment = widget.currentTournament.currentSegment;
-      final teams = widget.currentTournament.teamsInTheTournament ?? [];
-
-      if (segment == null || teams.isEmpty) {
-        setState(() {
-          isLoading = false;
-          matches = [];
-        });
-        return;
-      }
-
-      // Generate matchups using the sorting algorithm
-      matches = generateMatchups(widget.currentTournament, segment, teams).$1;
-
-      // Show a snackbar if matchups are not generated
-      if (matches.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No matchups could be generated.')),
-        );
-      }
-
-      setState(() {
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating matchups: $e')),
-        );
-      }
-    }
+    matches =
+        widget.currentTournament.currentSegment?.matchesInThisSegment ?? [];
+    setState(() {
+      isLoading = false;
+    });
   }
 
   bool get _allMatchesCompleted =>
@@ -75,29 +42,14 @@ class _MatchupScreenState extends State<MatchupScreen> {
 
   Future<void> _proceedToNextRound() async {
     try {
-      // Find the next segment
-      final segments = widget.currentTournament.tournamentSegments;
-      if (segments == null) return;
+      widget.currentTournament.proceedToNextSegment();
+      await widget.currentTournament.updateTournament();
 
-      final currentIndex = segments.indexWhere(
-        (s) =>
-            s.segmentID == widget.currentTournament.currentSegment?.segmentID,
-      );
-
-      if (currentIndex >= 0 && currentIndex < segments.length - 1) {
-        // Update to next segment
-        widget.currentTournament.currentSegment = segments[currentIndex + 1];
-        widget.currentTournament.currentMatches = [];
-
-        // Save to Firestore
-        await widget.currentTournament.updateTournament();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Proceeding to next round...')),
-          );
-          Navigator.pop(context, true); // Return to own_tournaments_screen
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Proceeded to next round.')),
+        );
+        Navigator.pop(context, true); // Indicate refresh needed
       }
     } catch (e) {
       if (mounted) {
@@ -172,8 +124,8 @@ class _MatchupScreenState extends State<MatchupScreen> {
           actions: [
             IconButton(
               icon: const Icon(Icons.leaderboard),
-              tooltip: 'Show Best Debaters',
-              onPressed: _showBestDebaters,
+              tooltip: 'Show Leaderboard',
+              onPressed: _showLeaderboardOptions,
             ),
           ],
         ),
@@ -235,7 +187,8 @@ class _MatchupScreenState extends State<MatchupScreen> {
   }
 
   Widget _buildMatchCard(DebateMatch match, int index) {
-    final venueText = match.venue != null ? 'Venue: ${match.venue}' : 'Venue: TBD';
+    final venueText =
+        match.venue != null ? 'Venue: ${match.venue}' : 'Venue: TBD';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -395,13 +348,13 @@ class _MatchupScreenState extends State<MatchupScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 ElevatedButton.icon(
-                  onPressed:
-                      match.isCompleted ? null : () => _showScoresDialog(match),
-                  icon: const Icon(Icons.score, size: 18),
-                  label: const Text('Submit Scores'),
+                  onPressed: () => _showScoresDialog(match),
+                  icon: Icon(match.isCompleted ? Icons.edit : Icons.score,
+                      size: 18),
+                  label:
+                      Text(match.isCompleted ? 'Edit Scores' : 'Submit Scores'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        match.isCompleted ? Colors.grey : Colors.blue,
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -417,20 +370,38 @@ class _MatchupScreenState extends State<MatchupScreen> {
   }
 
   void _showScoresDialog(DebateMatch match) {
-    final govDeb1 = TextEditingController();
-    final govDeb2 = TextEditingController();
-    final govDeb3 = TextEditingController();
-    final govRebuttal = TextEditingController();
+    final isEditing = match.isCompleted;
 
-    final oppDeb1 = TextEditingController();
-    final oppDeb2 = TextEditingController();
-    final oppDeb3 = TextEditingController();
-    final oppRebuttal = TextEditingController();
+    final govDeb1 = TextEditingController(
+      text: isEditing ? match.teamAScores[0].toString() : '',
+    );
+    final govDeb2 = TextEditingController(
+      text: isEditing ? match.teamAScores[1].toString() : '',
+    );
+    final govDeb3 = TextEditingController(
+      text: isEditing ? match.teamAScores[2].toString() : '',
+    );
+    final govRebuttal = TextEditingController(
+      text: isEditing ? match.teamARebuttal.toString() : '',
+    );
+
+    final oppDeb1 = TextEditingController(
+      text: isEditing ? match.teamBScores[0].toString() : '',
+    );
+    final oppDeb2 = TextEditingController(
+      text: isEditing ? match.teamBScores[1].toString() : '',
+    );
+    final oppDeb3 = TextEditingController(
+      text: isEditing ? match.teamBScores[2].toString() : '',
+    );
+    final oppRebuttal = TextEditingController(
+      text: isEditing ? match.teamBRebuttal.toString() : '',
+    );
 
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Submit Scores'),
+        title: Text(isEditing ? 'Edit Scores' : 'Submit Scores'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -510,13 +481,35 @@ class _MatchupScreenState extends State<MatchupScreen> {
               }
 
               try {
-                match.submitScores(
-                  govScores.map(int.parse).toList().sublist(0, 3),
-                  oppScores.map(int.parse).toList().sublist(0, 3),
-                  int.parse(govScores[3]),
-                  int.parse(oppScores[3]),
-                  widget.currentTournament,
-                );
+                if (isEditing) {
+                  _editMatchScores(match, govScores, oppScores);
+                } else {
+                  match.submitScores(
+                    govScores.map(int.parse).toList().sublist(0, 3),
+                    oppScores.map(int.parse).toList().sublist(0, 3),
+                    int.parse(govScores[3]),
+                    int.parse(oppScores[3]),
+                    widget.currentTournament,
+                  );
+                }
+
+                // Save updated matches to the segment and tournamentSegments
+                final segment = widget.currentTournament.currentSegment;
+                if (segment != null) {
+                  segment.matchesInThisSegment = [];
+                  segment.addMatchesToSegment(matches, segment);
+
+                  final segmentsList =
+                      widget.currentTournament.tournamentSegments ?? [];
+                  final segIndex = segmentsList.indexWhere(
+                    (s) => s.segmentID == segment.segmentID,
+                  );
+                  if (segIndex != -1) {
+                    segmentsList[segIndex] = segment;
+                    widget.currentTournament.tournamentSegments = segmentsList;
+                  }
+                }
+
                 //Update firestore
                 widget.currentTournament.updateTournament();
                 // Update widget state
@@ -524,8 +517,10 @@ class _MatchupScreenState extends State<MatchupScreen> {
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Scores submitted successfully.')),
+                  SnackBar(
+                      content: Text(isEditing
+                          ? 'Scores updated successfully.'
+                          : 'Scores submitted successfully.')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -533,11 +528,100 @@ class _MatchupScreenState extends State<MatchupScreen> {
                 );
               }
             },
-            child: const Text('Submit'),
+            child: Text(isEditing ? 'Update' : 'Submit'),
           ),
         ],
       ),
     );
+  }
+
+  void _editMatchScores(
+      DebateMatch match, List<String> govScores, List<String> oppScores) {
+    // Parse new scores
+    final newGovDebScores = govScores.sublist(0, 3).map(int.parse).toList();
+    final newOppDebScores = oppScores.sublist(0, 3).map(int.parse).toList();
+    final newGovRebuttal = int.parse(govScores[3]);
+    final newOppRebuttal = int.parse(oppScores[3]);
+
+    // Get old scores to calculate the difference
+    final oldGovDebScores = match.teamAScores;
+    final oldOppDebScores = match.teamBScores;
+    final oldGovRebuttal = match.teamARebuttal;
+    final oldOppRebuttal = match.teamBRebuttal;
+
+    // Calculate old totals (including rebuttal)
+    int oldGovTotal = oldGovDebScores[0] +
+        oldGovDebScores[1] +
+        oldGovDebScores[2] +
+        oldGovRebuttal;
+    int oldOppTotal = oldOppDebScores[0] +
+        oldOppDebScores[1] +
+        oldOppDebScores[2] +
+        oldOppRebuttal;
+
+    // Calculate new totals (including rebuttal)
+    int newGovTotal = newGovDebScores[0] +
+        newGovDebScores[1] +
+        newGovDebScores[2] +
+        newGovRebuttal;
+    int newOppTotal = newOppDebScores[0] +
+        newOppDebScores[1] +
+        newOppDebScores[2] +
+        newOppRebuttal;
+
+    // Update individual debater scores
+    for (int i = 0; i < 3; i++) {
+      final scoreDifA = newGovDebScores[i] - oldGovDebScores[i];
+      final scoreDifB = newOppDebScores[i] - oldOppDebScores[i];
+
+      match.teamA.teamMembers[i].increaseIndividualScore(scoreDifA);
+      match.teamB.teamMembers[i].increaseIndividualScore(scoreDifB);
+
+      // Update tournament debaters list
+      final debaterAId = match.teamA.teamMembers[i].debaterID;
+      final tournamentDebaterA =
+          widget.currentTournament.debatersInTheTournament!.firstWhere(
+        (d) => d.debaterID == debaterAId,
+        orElse: () => match.teamA.teamMembers[i],
+      );
+      tournamentDebaterA.increaseIndividualScore(scoreDifA);
+
+      final debaterBId = match.teamB.teamMembers[i].debaterID;
+      final tournamentDebaterB =
+          widget.currentTournament.debatersInTheTournament!.firstWhere(
+        (d) => d.debaterID == debaterBId,
+        orElse: () => match.teamB.teamMembers[i],
+      );
+      tournamentDebaterB.increaseIndividualScore(scoreDifB);
+    }
+
+    // Update team scores by removing old total and adding new total
+    final teamScoreDifA = newGovTotal - oldGovTotal;
+    final teamScoreDifB = newOppTotal - oldOppTotal;
+
+    match.teamA.increaseTeamScore(teamScoreDifA);
+    match.teamB.increaseTeamScore(teamScoreDifB);
+
+    // Update tournament teams list
+    final tournamentTeamA =
+        widget.currentTournament.teamsInTheTournament!.firstWhere(
+      (t) => t.teamID == match.teamA.teamID,
+      orElse: () => match.teamA,
+    );
+    final tournamentTeamB =
+        widget.currentTournament.teamsInTheTournament!.firstWhere(
+      (t) => t.teamID == match.teamB.teamID,
+      orElse: () => match.teamB,
+    );
+
+    tournamentTeamA.increaseTeamScore(teamScoreDifA);
+    tournamentTeamB.increaseTeamScore(teamScoreDifB);
+
+    // Update match scores and rebuttal scores
+    match.teamAScores = newGovDebScores;
+    match.teamBScores = newOppDebScores;
+    match.teamARebuttal = newGovRebuttal;
+    match.teamBRebuttal = newOppRebuttal;
   }
 
   Widget _buildScoreField(TextEditingController controller, String label) {
@@ -552,9 +636,134 @@ class _MatchupScreenState extends State<MatchupScreen> {
     );
   }
 
+  void _showLeaderboardOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leaderboard'),
+        content: const Text('What would you like to view?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showBestTeams();
+            },
+            child: const Text('Top Teams'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showBestDebaters();
+            },
+            child: const Text('Top Debaters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBestTeams() {
+    final teams = widget.currentTournament.teamsInTheTournament ?? [];
+
+    if (teams.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No teams found in this tournament.')),
+      );
+      return;
+    }
+
+    // Sort teams by total score in descending order
+    final sortedTeams = List.from(teams)
+      ..sort((a, b) => b.teamScore.compareTo(a.teamScore));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+            SizedBox(width: 8),
+            Text('Top Teams'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: sortedTeams.length,
+            itemBuilder: (context, index) {
+              final team = sortedTeams[index];
+              final isTopThree = index < 3;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                elevation: isTopThree ? 3 : 1,
+                color: isTopThree
+                    ? (index == 0
+                        ? Colors.amber.shade50
+                        : index == 1
+                            ? Colors.grey.shade100
+                            : Colors.orange.shade50)
+                    : Colors.white,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isTopThree
+                        ? (index == 0
+                            ? Colors.amber
+                            : index == 1
+                                ? Colors.grey
+                                : Colors.orange)
+                        : Colors.green,
+                    foregroundColor: Colors.white,
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(
+                    team.teamName,
+                    style: TextStyle(
+                      fontWeight:
+                          isTopThree ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Wins: ${team.teamWins} | Losses: ${team.teamLosses}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${team.teamScore.toStringAsFixed(1)} pts',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade900,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBestDebaters() {
     final debaters = widget.currentTournament.debatersInTheTournament ?? [];
-    
+
     if (debaters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No debaters found in this tournament.')),
@@ -573,7 +782,7 @@ class _MatchupScreenState extends State<MatchupScreen> {
           children: [
             Icon(Icons.emoji_events, color: Colors.amber, size: 28),
             SizedBox(width: 8),
-            Text('Best Debaters'),
+            Text('Top Debaters'),
           ],
         ),
         content: SizedBox(
@@ -584,15 +793,15 @@ class _MatchupScreenState extends State<MatchupScreen> {
             itemBuilder: (context, index) {
               final debater = sortedDebaters[index];
               final isTopThree = index < 3;
-              
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 elevation: isTopThree ? 3 : 1,
-                color: isTopThree 
-                    ? (index == 0 
-                        ? Colors.amber.shade50 
-                        : index == 1 
-                            ? Colors.grey.shade100 
+                color: isTopThree
+                    ? (index == 0
+                        ? Colors.amber.shade50
+                        : index == 1
+                            ? Colors.grey.shade100
                             : Colors.orange.shade50)
                     : Colors.white,
                 child: ListTile(
@@ -613,7 +822,8 @@ class _MatchupScreenState extends State<MatchupScreen> {
                   title: Text(
                     debater.name,
                     style: TextStyle(
-                      fontWeight: isTopThree ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isTopThree ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                   subtitle: Text(
@@ -621,7 +831,8 @@ class _MatchupScreenState extends State<MatchupScreen> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(12),

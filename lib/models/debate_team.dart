@@ -1,17 +1,11 @@
 import 'debater.dart';
 
-enum DebateTeamStatus {
-  notPlayed,
-  win,
-  lose,
-}
-
 class DebateTeam {
   int teamID;
   String teamName;
   List<dynamic> teamMembers; // Will contain Debater objects
   double teamScore;
-  DebateTeamStatus teamStatus;
+  String teamStatus;
   int teamWins;
   int teamLosses;
   int teamPlayedGovernment;
@@ -25,7 +19,7 @@ class DebateTeam {
     this.teamScore = 0.0,
     this.teamWins = 0,
     this.teamLosses = 0,
-    this.teamStatus = DebateTeamStatus.notPlayed,
+    this.teamStatus = 'notPlayed',
     this.teamPlayedGovernment = 0,
     this.teamPlayedOpposition = 0,
     this.autoQualified = false,
@@ -36,12 +30,12 @@ class DebateTeam {
   }
 
   void teamWinsADebate() {
-    teamStatus = DebateTeamStatus.win;
+    teamStatus = 'win';
     teamWins++;
   }
 
   void teamLosesADebate() {
-    teamStatus = DebateTeamStatus.lose;
+    teamStatus = 'lose';
     teamLosses++;
   }
 
@@ -73,7 +67,7 @@ class DebateTeam {
       'teamWins': teamWins,
       'teamLosses': teamLosses,
       'teamScore': teamScore,
-      'teamStatus': teamStatus.index,
+      'teamStatus': teamStatus,
       'teamPlayedGovernment': teamPlayedGovernment,
       'teamPlayedOpposition': teamPlayedOpposition,
       'autoQualified': autoQualified,
@@ -96,7 +90,7 @@ class DebateTeam {
       teamScore: (json['teamScore'] ?? 0.0).toDouble(),
       teamWins: json['teamWins'] ?? 0,
       teamLosses: json['teamLosses'] ?? 0,
-      teamStatus: DebateTeamStatus.values[json['teamStatus'] ?? 0],
+      teamStatus: json['teamStatus'] ?? 'notPlayed',
       teamPlayedGovernment: json['teamPlayedGovernment'] ?? 0,
       teamPlayedOpposition: json['teamPlayedOpposition'] ?? 0,
       autoQualified: json['autoQualified'] ?? false,

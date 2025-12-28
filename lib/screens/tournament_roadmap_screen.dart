@@ -306,6 +306,7 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
     String segmentName;
     int numberOfTeams;
     int numberOfQualified;
+    bool isATabRound = false;
 
     if (_selectedSegmentType == 'Custom') {
       segmentName = _customNameController.text.trim();
@@ -319,11 +320,10 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
       }
     } else {
       segmentName = _selectedSegmentType;
-      var defaults = _segmentDefaults[_selectedSegmentType];
-      numberOfTeams = defaults['teams'] == 'All'
-          ? widget.currentTournament.numberOfTeamsInTournament
-          : defaults['teams'];
-      numberOfQualified = defaults['qualified'];
+      numberOfTeams = _segmentDefaults[_selectedSegmentType]['teams'];
+      numberOfQualified = _segmentDefaults[_selectedSegmentType]['qualified'];
+      isATabRound =
+          _segmentDefaults[_selectedSegmentType]['isTabRound'] as bool;
     }
 
     setState(() {
@@ -332,6 +332,7 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
         segmentID: _segmentIdCounter++,
         numberOfTeamsInSegment: numberOfTeams,
         numberOfTeamsAutoQualifiedForNextRound: numberOfQualified,
+        isTabRound: isATabRound,
       );
       _segments.add(newSegment);
     });

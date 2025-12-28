@@ -101,57 +101,6 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
     _showSnack('Team "$teamName" added.');
   }
 
-  void _showTeamsDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Current Teams'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: _teams.isEmpty
-                ? const Text('No teams added yet.')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _teams.length,
-                    itemBuilder: (context, index) {
-                      final team = _teams[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${team.teamName} (ID: ${team.teamID})',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            ...team.teamMembers.map((member) {
-                              if (member is Debater) {
-                                return Text(
-                                    '- ${member.name} (ID: ${member.debaterID})');
-                              }
-                              return const SizedBox.shrink();
-                            }),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _editTeam(int index) {
     final team = _teams[index];
     final teamNameCtrl = TextEditingController(text: team.teamName);
@@ -368,46 +317,24 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
               icon: Icons.person,
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _addTeam,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: const Text(
-                      'Add Team',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _addTeam,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showTeamsDialog,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue, width: 2),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.list),
-                    label: const Text(
-                      'Show Current Teams',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Add Team',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -458,13 +385,28 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            if (_teams.isNotEmpty) ...[
-              const Text(
-                'Recently Added Teams',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              ..._teams.reversed.take(3).map((team) => _buildTeamTile(team)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'All Teams (${_teams.length})',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_teams.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No teams added yet.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else ...[
+              ..._teams.map((team) => _buildTeamTile(team)),
             ],
           ],
         ),
