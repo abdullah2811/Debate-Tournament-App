@@ -4,7 +4,7 @@ import '../models/debate_match.dart';
 import '../models/debate_team.dart';
 import '../models/tournament_segment.dart';
 
-class Generator {
+class MatchGenerator {
   (List<DebateMatch>, List<DebateTeam>) generateMatchups(
     Tournament currentTournament,
     TournamentSegment segment,

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:debate_tournament_app/models/tournament.dart';
+import 'package:debate_tournament_app/models/debate_team.dart';
+import 'package:debate_tournament_app/models/debater.dart';
+import 'package:debate_tournament_app/models/debate_match.dart';
 import 'dash_screen.dart';
 
 class TournamentDetailsScreen extends StatefulWidget {
-  const TournamentDetailsScreen({Key? key}) : super(key: key);
+  final Tournament currentTournament;
+
+  const TournamentDetailsScreen({required this.currentTournament, Key? key})
+      : super(key: key);
 
   @override
   State<TournamentDetailsScreen> createState() =>
@@ -12,17 +19,84 @@ class TournamentDetailsScreen extends StatefulWidget {
 class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _selectedSegmentIndex = 0;
+  bool _showTeamsLeaderboard = true; // true = teams, false = debaters
+
+  Tournament get tournament => widget.currentTournament;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    // Set selected segment to current segment if available
+    if (tournament.currentSegmentIndex >= 0) {
+      _selectedSegmentIndex = tournament.currentSegmentIndex;
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  String _getTournamentStatus() {
+    final now = DateTime.now();
+    if (tournament.isClosed) return 'Completed';
+    if (now.isBefore(tournament.tournamentStartingDate)) return 'Upcoming';
+    if (now.isAfter(tournament.tournamentEndingDate)) return 'Completed';
+    return 'Active';
+  }
+
+  Color _getStatusColor() {
+    final status = _getTournamentStatus();
+    switch (status) {
+      case 'Active':
+        return Colors.green;
+      case 'Upcoming':
+        return Colors.orange;
+      case 'Completed':
+        return Colors.grey;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDateRange() {
+    final start = tournament.tournamentStartingDate;
+    final end = tournament.tournamentEndingDate;
+    return '${_formatDate(start)} to ${_formatDate(end)}';
+  }
+
+  String _getFormatName() {
+    switch (tournament.tournamentFormat) {
+      case TournamentFormat.asianParliamentary:
+        return 'Asian Parliamentary';
+      case TournamentFormat.britishParliamentary:
+        return 'British Parliamentary';
+      case TournamentFormat.lincolnDouglas:
+        return 'Lincoln-Douglas';
+      case TournamentFormat.policyDebate:
+        return 'Policy Debate';
+      case TournamentFormat.publicForum:
+        return 'Public Forum';
+      case TournamentFormat.studentCongress:
+        return 'Student Congress';
+    }
+  }
+
+  int _getTotalMatchesCount() {
+    int count = 0;
+    if (tournament.tournamentSegments != null) {
+      for (var segment in tournament.tournamentSegments!) {
+        count += segment.matchesInThisSegment?.length ?? 0;
+      }
+    }
+    return count;
   }
 
   @override
@@ -82,16 +156,18 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Inter-University Debate 2025',
-                              style: TextStyle(
+                            Text(
+                              tournament.tournamentName,
+                              style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
@@ -99,19 +175,18 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.green,
+                                    color: _getStatusColor(),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Text(
-                                    'Active',
-                                    style: TextStyle(
+                                  child: Text(
+                                    _getTournamentStatus(),
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -121,9 +196,13 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Text(
-                                    'Preliminary Round 2',
-                                    style: TextStyle(
+                                  child: Text(
+                                    tournament
+                                            .tournamentSegments?[
+                                                tournament.currentSegmentIndex]
+                                            .segmentName ??
+                                        'Registration',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -151,52 +230,67 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Grand Hall, University of Excellence',
-                        style: TextStyle(
-                          fontSize: 14,
+                  if (tournament.tournamentLocation != null &&
+                      tournament.tournamentLocation!.isNotEmpty)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
                           color: Colors.white.withOpacity(0.9),
+                          size: 18,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            tournament.tournamentLocation!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 18,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            color: Colors.white.withOpacity(0.9),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDateRange(),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'January 15-17, 2025',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(
-                        Icons.school,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'National Debate Club',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.school,
+                            color: Colors.white.withOpacity(0.9),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            tournament.tournamentClubName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -213,7 +307,7 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                 Expanded(
                   child: _buildStatCard(
                     icon: Icons.groups,
-                    value: '24',
+                    value: '${tournament.numberOfTeamsInTournament}',
                     label: 'Teams',
                     color: Colors.blue,
                   ),
@@ -222,7 +316,7 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                 Expanded(
                   child: _buildStatCard(
                     icon: Icons.sports,
-                    value: '36',
+                    value: '${_getTotalMatchesCount()}',
                     label: 'Matches',
                     color: Colors.green,
                   ),
@@ -231,7 +325,7 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                 Expanded(
                   child: _buildStatCard(
                     icon: Icons.person,
-                    value: '72',
+                    value: '${tournament.debatersInTheTournament?.length ?? 0}',
                     label: 'Debaters',
                     color: Colors.orange,
                   ),
@@ -368,37 +462,63 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoCard(
-            icon: Icons.info,
-            title: 'Description',
-            value:
-                'Annual inter-university debate championship featuring top debaters from universities across the nation.',
-            color: Colors.blue,
-          ),
-          const SizedBox(height: 12),
+          if (tournament.tournamentDescription != null &&
+              tournament.tournamentDescription!.isNotEmpty)
+            _buildInfoCard(
+              icon: Icons.info,
+              title: 'Description',
+              value: tournament.tournamentDescription!,
+              color: Colors.blue,
+            ),
+          if (tournament.tournamentDescription != null &&
+              tournament.tournamentDescription!.isNotEmpty)
+            const SizedBox(height: 12),
           _buildInfoCard(
             icon: Icons.language,
             title: 'Format',
-            value: 'British Parliamentary Style',
+            value: _getFormatName(),
             color: Colors.purple,
           ),
           const SizedBox(height: 12),
           _buildInfoCard(
             icon: Icons.schedule,
             title: 'Current Stage',
-            value: 'Preliminary Round 2',
+            value: (tournament.tournamentSegments != null &&
+                    tournament.currentSegmentIndex >= 0 &&
+                    tournament.currentSegmentIndex <
+                        tournament.tournamentSegments!.length)
+                ? tournament
+                    .tournamentSegments![tournament.currentSegmentIndex]
+                    .segmentName
+                : 'Registration',
             color: Colors.green,
           ),
           const SizedBox(height: 12),
+          if (tournament.prizePool != null)
+            _buildInfoCard(
+              icon: Icons.attach_money,
+              title: 'Prize Pool',
+              value: '\$${tournament.prizePool!.toStringAsFixed(0)}',
+              color: Colors.orange,
+            ),
+          if (tournament.prizePool != null) const SizedBox(height: 12),
+          if (tournament.maxTeams != null)
+            _buildInfoCard(
+              icon: Icons.groups,
+              title: 'Maximum Teams',
+              value: '${tournament.maxTeams}',
+              color: Colors.teal,
+            ),
+          if (tournament.maxTeams != null) const SizedBox(height: 12),
           _buildInfoCard(
-            icon: Icons.attach_money,
-            title: 'Prize Pool',
-            value: '\$10,000',
-            color: Colors.orange,
+            icon: Icons.flag,
+            title: 'Status',
+            value: _getTournamentStatus(),
+            color: _getStatusColor(),
           ),
           const SizedBox(height: 24),
           const Text(
-            'Contact Information',
+            'Tournament Segments',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -406,36 +526,119 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoCard(
-            icon: Icons.person,
-            title: 'Organizer',
-            value: 'Dr. Sarah Johnson',
-            color: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.email,
-            title: 'Email',
-            value: 'contact@debateclub.org',
-            color: Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.phone,
-            title: 'Phone',
-            value: '+1 234 567 8900',
-            color: Colors.green,
-          ),
+          if (tournament.tournamentSegments == null ||
+              tournament.tournamentSegments!.isEmpty)
+            const Center(
+              child: Text(
+                'No segments configured yet.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          else
+            ...tournament.tournamentSegments!.asMap().entries.map((entry) {
+              final index = entry.key;
+              final segment = entry.value;
+              final isCurrent = index == tournament.currentSegmentIndex;
+              final isCompleted = index < tournament.currentSegmentIndex;
+              return Card(
+                elevation: 1,
+                margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isCurrent
+                      ? const BorderSide(color: Colors.green, width: 2)
+                      : BorderSide.none,
+                ),
+                child: ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isCompleted
+                          ? Colors.green
+                          : isCurrent
+                              ? Colors.blue
+                              : Colors.grey.shade300,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isCompleted
+                          ? Icons.check
+                          : isCurrent
+                              ? Icons.play_arrow
+                              : Icons.circle_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    segment.segmentName,
+                    style: TextStyle(
+                      fontWeight:
+                          isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${segment.numberOfTeamsInSegment} teams | ${segment.matchesInThisSegment?.length ?? 0} matches',
+                  ),
+                  trailing: isCurrent
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Current',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              );
+            }),
         ],
       ),
     );
   }
 
   Widget _buildTeamsTab() {
+    final teams = tournament.teamsInTheTournament ?? [];
+
+    if (teams.isEmpty) {
+      return const Center(
+        child: Text(
+          'No teams registered yet.',
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    // Sort teams by wins first, then by score
+    final sortedTeams = List<DebateTeam>.from(teams)
+      ..sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        }
+        return b.teamScore.compareTo(a.teamScore);
+      });
+
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: 10, // TODO: Replace with actual team count
+      itemCount: sortedTeams.length,
       itemBuilder: (context, index) {
+        final team = sortedTeams[index];
+        final memberNames = team.teamMembers
+            .map((m) => m is Debater ? m.name : 'Unknown')
+            .join(', ');
+
         return Card(
           elevation: 1,
           margin: const EdgeInsets.only(bottom: 12),
@@ -448,22 +651,34 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: index < 3
+                    ? (index == 0
+                        ? Colors.amber.withOpacity(0.2)
+                        : index == 1
+                            ? Colors.grey.withOpacity(0.2)
+                            : Colors.orange.withOpacity(0.2))
+                    : Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
                 child: Text(
                   '${index + 1}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: index < 3
+                        ? (index == 0
+                            ? Colors.amber.shade700
+                            : index == 1
+                                ? Colors.grey.shade700
+                                : Colors.orange.shade700)
+                        : Colors.blue,
                   ),
                 ),
               ),
             ),
             title: Text(
-              'Team ${index + 1} - Phoenix Debaters',
+              team.teamName,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
@@ -477,32 +692,28 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                   children: [
                     Icon(Icons.person, size: 14, color: Colors.grey[600]),
                     const SizedBox(width: 4),
-                    Text(
-                      'John Doe, Jane Smith, Mike Brown',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    Expanded(
+                      child: Text(
+                        memberNames,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
-                    _buildBadge('Wins: 3', Colors.green),
-                    const SizedBox(width: 8),
-                    _buildBadge('Losses: 1', Colors.red),
-                    const SizedBox(width: 8),
-                    _buildBadge('Score: 245', Colors.blue),
+                    _buildBadge('Wins: ${team.teamWins}', Colors.green),
+                    _buildBadge('Losses: ${team.teamLosses}', Colors.red),
+                    _buildBadge('Score: ${team.teamScore.toStringAsFixed(0)}',
+                        Colors.blue),
                   ],
                 ),
               ],
             ),
-            trailing: Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey[400],
-              size: 16,
-            ),
-            onTap: () {
-              // TODO: Navigate to team details
-            },
           ),
         );
       },
@@ -510,23 +721,119 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
   }
 
   Widget _buildMatchesTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: 8, // TODO: Replace with actual match count
-      itemBuilder: (context, index) {
-        return Card(
-          elevation: 1,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    final segments = tournament.tournamentSegments ?? [];
+
+    if (segments.isEmpty) {
+      return const Center(
+        child: Text(
+          'No segments configured yet.',
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    final selectedSegment = _selectedSegmentIndex < segments.length
+        ? segments[_selectedSegmentIndex]
+        : segments.first;
+    final matches = selectedSegment.matchesInThisSegment ?? [];
+
+    return Column(
+      children: [
+        // Segment selector buttons
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.white,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: segments.asMap().entries.map((entry) {
+                final index = entry.key;
+                final segment = entry.value;
+                final isSelected = index == _selectedSegmentIndex;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedSegmentIndex = index;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isSelected ? Colors.blue : Colors.grey.shade200,
+                      foregroundColor:
+                          isSelected ? Colors.white : Colors.grey.shade700,
+                      elevation: isSelected ? 2 : 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: Text(
+                      segment.segmentName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        const Divider(height: 1),
+        // Matches list
+        Expanded(
+          child: matches.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No matches in this segment.',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: matches.length,
+                  itemBuilder: (context, index) {
+                    final match = matches[index];
+                    return _buildMatchCard(match, index);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatchCard(DebateMatch match, int index) {
+    final isCompleted = match.isCompleted;
+    final teamATotal = isCompleted
+        ? match.teamAScores.reduce((a, b) => a + b) + match.teamARebuttal
+        : 0;
+    final teamBTotal = isCompleted
+        ? match.teamBScores.reduce((a, b) => a + b) + match.teamBRebuttal
+        : 0;
+    final teamAWon = teamATotal > teamBTotal;
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Match ${index + 1}',
@@ -535,121 +842,415 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                         fontSize: 16,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: index % 2 == 0 ? Colors.green : Colors.orange,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        index % 2 == 0 ? 'Completed' : 'Scheduled',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    if (match.venue != null) ...[
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Venue ${match.venue}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Team A',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Phoenix Debaters',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (index % 2 == 0) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              '125',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isCompleted ? Colors.green : Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isCompleted ? 'Completed' : 'Pending',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'VS',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Team B',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Eagle Speakers',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (index % 2 == 0) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              '118',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today,
-                        size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'January 16, 2025 - 10:00 AM',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Government',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.blue.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        match.teamA.teamName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isCompleted && teamAWon
+                              ? Colors.green.shade700
+                              : Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (isCompleted) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '$teamATotal',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: teamAWon
+                                    ? Colors.green.shade700
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                            if (teamAWon)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.emoji_events,
+                                  color: Colors.amber,
+                                  size: 20,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'VS',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Opposition',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.red.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        match.teamB.teamName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isCompleted && !teamAWon
+                              ? Colors.green.shade700
+                              : Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (isCompleted) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!teamAWon)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  Icons.emoji_events,
+                                  color: Colors.amber,
+                                  size: 20,
+                                ),
+                              ),
+                            Text(
+                              '$teamBTotal',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: !teamAWon
+                                    ? Colors.green.shade700
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (isCompleted) ...[
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Column(
+                    children: [
+                      Text(
+                        'Individual: ${match.teamAScores.join(' + ')}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        'Rebuttal: ${match.teamARebuttal}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      Text(
+                        'Individual: ${match.teamBScores.join(' + ')}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        'Rebuttal: ${match.teamBRebuttal}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeaderboardTab() {
+    return Column(
+      children: [
+        // Toggle buttons for Teams vs Debaters
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showTeamsLeaderboard = true;
+                    });
+                  },
+                  icon: const Icon(Icons.groups, size: 20),
+                  label: const Text('Top Teams'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _showTeamsLeaderboard
+                        ? Colors.purple
+                        : Colors.grey.shade200,
+                    foregroundColor: _showTeamsLeaderboard
+                        ? Colors.white
+                        : Colors.grey.shade700,
+                    elevation: _showTeamsLeaderboard ? 2 : 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showTeamsLeaderboard = false;
+                    });
+                  },
+                  icon: const Icon(Icons.person, size: 20),
+                  label: const Text('Top Debaters'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: !_showTeamsLeaderboard
+                        ? Colors.teal
+                        : Colors.grey.shade200,
+                    foregroundColor: !_showTeamsLeaderboard
+                        ? Colors.white
+                        : Colors.grey.shade700,
+                    elevation: !_showTeamsLeaderboard ? 2 : 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        // Leaderboard content
+        Expanded(
+          child: _showTeamsLeaderboard
+              ? _buildTeamsLeaderboard()
+              : _buildDebatersLeaderboard(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamsLeaderboard() {
+    final teams = tournament.teamsInTheTournament ?? [];
+
+    if (teams.isEmpty) {
+      return const Center(
+        child: Text(
+          'No teams registered yet.',
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    final sortedTeams = List<DebateTeam>.from(teams)
+      ..sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        }
+        return b.teamScore.compareTo(a.teamScore);
+      });
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: sortedTeams.length,
+      itemBuilder: (context, index) {
+        final team = sortedTeams[index];
+        final isTopThree = index < 3;
+
+        return Card(
+          elevation: isTopThree ? 3 : 1,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: isTopThree
+              ? (index == 0
+                  ? Colors.amber.shade50
+                  : index == 1
+                      ? Colors.grey.shade100
+                      : Colors.orange.shade50)
+              : Colors.white,
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: index == 0
+                    ? Colors.amber
+                    : index == 1
+                        ? Colors.grey[400]
+                        : index == 2
+                            ? Colors.brown[300]
+                            : Colors.purple.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: index < 3
+                    ? Icon(
+                        Icons.emoji_events,
+                        color: Colors.white,
+                        size: 24,
+                      )
+                    : Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple,
+                        ),
+                      ),
+              ),
+            ),
+            title: Text(
+              team.teamName,
+              style: TextStyle(
+                fontWeight: isTopThree ? FontWeight.bold : FontWeight.w600,
+                fontSize: isTopThree ? 16 : 14,
+              ),
+            ),
+            subtitle: Row(
+              children: [
+                _buildBadge('W: ${team.teamWins}', Colors.green),
+                const SizedBox(width: 6),
+                _buildBadge('L: ${team.teamLosses}', Colors.red),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${team.teamScore.toStringAsFixed(0)} pts',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple.shade900,
+                  fontSize: isTopThree ? 14 : 12,
+                ),
+              ),
             ),
           ),
         );
@@ -657,133 +1258,106 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
     );
   }
 
-  Widget _buildLeaderboardTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Top Teams',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+  Widget _buildDebatersLeaderboard() {
+    final debaters = tournament.debatersInTheTournament ?? [];
+
+    if (debaters.isEmpty) {
+      return const Center(
+        child: Text(
+          'No debaters registered yet.',
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    final sortedDebaters = List<Debater>.from(debaters)
+      ..sort((a, b) => b.individualScore.compareTo(a.individualScore));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: sortedDebaters.length,
+      itemBuilder: (context, index) {
+        final debater = sortedDebaters[index];
+        final isTopThree = index < 3;
+
+        return Card(
+          elevation: isTopThree ? 3 : 1,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 16),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 5,
-            itemBuilder: (context, index) {
-              return Card(
-                elevation: 1,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: index == 0
-                          ? Colors.amber
-                          : index == 1
-                              ? Colors.grey[400]
-                              : index == 2
-                                  ? Colors.brown[300]
-                                  : Colors.blue.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
+          color: isTopThree
+              ? (index == 0
+                  ? Colors.amber.shade50
+                  : index == 1
+                      ? Colors.grey.shade100
+                      : Colors.orange.shade50)
+              : Colors.white,
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: index == 0
+                    ? Colors.amber
+                    : index == 1
+                        ? Colors.grey[400]
+                        : index == 2
+                            ? Colors.brown[300]
+                            : Colors.teal.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: index < 3
+                    ? const Icon(
+                        Icons.emoji_events,
+                        color: Colors.white,
+                        size: 24,
+                      )
+                    : Text(
                         '${index + 1}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: index < 3 ? Colors.white : Colors.blue,
+                          color: Colors.teal,
                         ),
                       ),
-                    ),
-                  ),
-                  title: Text(
-                    'Team ${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle:
-                      Text('Wins: ${5 - index} | Score: ${250 - (index * 20)}'),
-                  trailing: Icon(
-                    index == 0 ? Icons.emoji_events : Icons.star,
-                    color: index == 0 ? Colors.amber : Colors.grey,
-                  ),
+              ),
+            ),
+            title: Text(
+              debater.name,
+              style: TextStyle(
+                fontWeight: isTopThree ? FontWeight.bold : FontWeight.w600,
+                fontSize: isTopThree ? 16 : 14,
+              ),
+            ),
+            subtitle: Text(
+              debater.teamName.isEmpty ? 'No Team' : debater.teamName,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${debater.individualScore.toStringAsFixed(0)} pts',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal.shade900,
+                  fontSize: isTopThree ? 14 : 12,
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Top Debaters',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 5,
-            itemBuilder: (context, index) {
-              return Card(
-                elevation: 1,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: index == 0
-                          ? Colors.amber
-                          : index == 1
-                              ? Colors.grey[400]
-                              : index == 2
-                                  ? Colors.brown[300]
-                                  : Colors.purple.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: index < 3 ? Colors.white : Colors.purple,
-                        ),
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    'Debater ${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle:
-                      Text('Score: ${95 - (index * 5)} | Team ${index + 1}'),
-                  trailing: Icon(
-                    index == 0 ? Icons.emoji_events : Icons.star,
-                    color: index == 0 ? Colors.amber : Colors.grey,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

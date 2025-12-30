@@ -297,15 +297,14 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
         startDate == endDate ? startDate : '$startDate - $endDate';
 
     // Get segment name
-    final segmentName = tournament.currentSegment.toString().split('.').last;
-    final formattedSegment = segmentName
-        .replaceAllMapped(
-            RegExp(r'([a-z])([A-Z])'), (match) => '${match[1]} ${match[2]}')
-        .replaceAll('preliminary', 'Preliminary ')
-        .replaceAll('semi', 'Semi ')
-        .replaceAll('final', 'Final')
-        .replaceAll('Finals', 'Finals')
-        .trim();
+    String formattedSegment = 'N/A';
+    if (tournament.tournamentSegments != null &&
+        tournament.currentSegmentIndex >= 0 &&
+        tournament.currentSegmentIndex <
+            tournament.tournamentSegments!.length) {
+      formattedSegment = tournament
+          .tournamentSegments![tournament.currentSegmentIndex].segmentName;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -524,7 +523,8 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const TournamentDetailsScreen(),
+                        builder: (context) => TournamentDetailsScreen(
+                            currentTournament: tournament),
                       ),
                     );
                   },

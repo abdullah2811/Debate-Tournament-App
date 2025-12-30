@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:debate_tournament_app/services/Generator.dart';
+import 'package:debate_tournament_app/services/match_generator.dart';
 import 'debate_team.dart';
 import 'debate_match.dart';
 import 'debater.dart';
@@ -26,14 +26,12 @@ class Tournament {
   int? maxTeams;
   double? prizePool;
   TournamentFormat tournamentFormat;
-  TournamentSegment? currentSegment;
   int currentSegmentIndex = -1;
   String? createdByUserID;
   DateTime? createdAt;
   List<Debater>? debatersInTheTournament;
   List<DebateTeam>? teamsInTheTournament;
   List<DebateTeam>? autoQualifiedTeams;
-  List<DebateMatch>? currentMatches;
   List<TournamentSegment>? tournamentSegments;
   bool teamAdditionClosed = false;
   bool isClosed = false;
@@ -50,7 +48,6 @@ class Tournament {
     this.maxTeams,
     this.prizePool,
     this.tournamentFormat = TournamentFormat.asianParliamentary,
-    this.currentSegment,
     this.currentSegmentIndex = -1,
     this.createdByUserID,
     this.createdAt,
@@ -58,7 +55,6 @@ class Tournament {
     this.teamsInTheTournament,
     this.autoQualifiedTeams,
     this.tournamentSegments,
-    this.currentMatches,
     this.teamAdditionClosed = false,
     this.isClosed = false,
   });
@@ -171,19 +167,170 @@ class Tournament {
   //   updateTournament();
   // }
 
-  void updateCurrentSegment(TournamentSegment segment) {
-    currentSegment = segment;
-    updateTournament();
+  (List<DebateMatch>, List<DebateTeam>) generateMatchups(
+    Tournament currentTournament,
+    TournamentSegment segment,
+    List<DebateTeam> teams,
+  ) {
+    List<DebateMatch> matches = [];
+    List<DebateTeam> disqualifiedTeams = [];
+
+    int auto = segment.numberOfTeamsAutoQualifiedForNextRound;
+    int teamsCount = segment.numberOfTeamsInSegment > 0
+        ? segment.numberOfTeamsInSegment
+        : teams.length;
+    int start = 0, end = teamsCount - 1;
+    int v = 1; //Venue number
+
+    // Manage the auto-qualified teams
+    start = auto;
+    // Ensure end doesn't exceed actual teams available
+    if (end >= teams.length) {
+      end = teams.length - 1;
+    }
+    //Add first 'auto' teams to the tournamnt's autoQualifiedTeams list
+    for (int i = 0; i < auto; i++) {
+      addAutoQualifiedTeam(teams[i]);
+    }
+    for (int i = end + 1; i < teams.length; i++) {
+      disqualifiedTeams.add(teams[i]);
+    }
+
+    //Current round index
+    int roundIndex = tournamentSegments!.indexOf(segment);
+
+    if (!segment.isTabRound) {
+      // Sort teams based on the number of wins first, then total teamScore
+      teams.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+    } else if (roundIndex != 0) {
+      List<DebateTeam> teamsWon = [];
+      List<DebateTeam> teamsLost = [];
+      // Teams current status is win, add to teamsWon else add to teamsLost
+      for (var team in teams) {
+        if (team.teamStatus == 'win') {
+          teamsWon.add(team);
+        } else {
+          teamsLost.add(team);
+        }
+      }
+      teamsWon.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+      teamsLost.sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else {
+          return b.teamScore.compareTo(a.teamScore);
+        }
+      });
+
+      // If teamsWon has odd number of teams, move the first element of the teamsLost to teamsWon's end
+      if (teamsWon.length % 2 != 0 && teamsLost.isNotEmpty) {
+        DebateTeam movedTeam = teamsLost.removeAt(0);
+        teamsWon.add(movedTeam);
+      }
+
+      List<DebateMatch> winMatches = [];
+      List<DebateMatch> loseMatches = [];
+      // Pair teams in teamsWon
+      int winStart = 0, winEnd = teamsWon.length - 1;
+      while (winStart < winEnd) {
+        DebateTeam teamA = teamsWon[winStart];
+        DebateTeam teamB = teamsWon[winEnd];
+
+        DebateMatch match = DebateMatch(
+          teamA: teamA,
+          teamB: teamB,
+        );
+
+        winMatches.add(match);
+        winStart++;
+        winEnd--;
+      }
+      // Pair teams in teamsLost
+      int loseStart = 0, loseEnd = teamsLost.length - 1;
+      while (loseStart < loseEnd) {
+        DebateTeam teamA = teamsLost[loseStart];
+        DebateTeam teamB = teamsLost[loseEnd];
+
+        DebateMatch match = DebateMatch(
+          teamA: teamA,
+          teamB: teamB,
+        );
+
+        loseMatches.add(match);
+        loseStart++;
+        loseEnd--;
+      }
+      matches = [...winMatches, ...loseMatches]; // Match generation completed
+    }
+
+    if (roundIndex == 0 || !segment.isTabRound) {
+      while (start < end) {
+        DebateTeam teamA = teams[start];
+        DebateTeam teamB = teams[end];
+
+        DebateMatch match = DebateMatch(
+          teamA: teamA,
+          teamB: teamB,
+        );
+
+        matches.add(match);
+        start++;
+        end--;
+      }
+    } // Matchup generation completed
+
+    // Check match by match. If any team's teamPlayedGovernment is equal to number of rounds or 0, then swap sides.
+    roundIndex++;
+    for (var match in matches) {
+      if (match.teamA.teamPlayedGovernment == roundIndex ||
+          match.teamA.teamPlayedGovernment == 0) {
+        // Swap sides
+        DebateTeam temp = match.teamA;
+        match.teamA = match.teamB;
+        match.teamB = temp;
+      }
+      match.venue = v;
+      v++;
+    }
+
+    (List<DebateMatch>, List<DebateTeam>) result = (matches, disqualifiedTeams);
+
+    return result;
   }
 
   void proceedToNextSegment() {
     if (tournamentSegments != null &&
         currentSegmentIndex < (tournamentSegments!.length - 1)) {
       currentSegmentIndex++;
-      currentSegment = tournamentSegments![currentSegmentIndex];
-      currentSegment?.matchesInThisSegment = Generator()
-          .generateMatchups(this, currentSegment!, teamsInTheTournament ?? [])
-          .$1;
+      TournamentSegment? currentSegment =
+          tournamentSegments?[currentSegmentIndex];
+
+      tournamentSegments?[currentSegmentIndex].matchesInThisSegment =
+          generateMatchups(this, currentSegment!, teamsInTheTournament ?? [])
+              .$1;
+
+      // //Print message that the matchups have been generated and print the matchups also in the console
+      // print('Generated matchups for segment: ${currentSegment!.segmentName}');
+      // for (var match in teamsInTheTournament!) {
+      //   print('Team: ${match.teamName}');
+      // }
+      // print('Matchups:');
+      // for (var match in currentMatches!) {
+      //   print(
+      //       'Venue ${match.venue}: ${match.teamA.teamName} vs ${match.teamB.teamName}');
+      // }
 
       updateTournament();
     }
@@ -207,7 +354,6 @@ class Tournament {
       'tournamentDescription': tournamentDescription,
       'tournamentStartingDate': tournamentStartingDate.toIso8601String(),
       'tournamentEndingDate': tournamentEndingDate.toIso8601String(),
-      'currentSegment': currentSegment?.toJson(),
       'currentSegmentIndex': currentSegmentIndex,
       'numberOfTeamsInTournament': numberOfTeamsInTournament,
       'maxTeams': maxTeams,
@@ -223,7 +369,6 @@ class Tournament {
           autoQualifiedTeams?.map((team) => team.toJson()).toList(),
       'tournamentSegments':
           tournamentSegments?.map((segment) => segment.toJson()).toList(),
-      'currentMatches': currentMatches?.map((match) => match.toJson()).toList(),
       'teamAdditionClosed': teamAdditionClosed,
       'isClosed': isClosed,
     };
@@ -251,15 +396,6 @@ class Tournament {
           parseDate(json['tournamentStartingDate']) ?? DateTime.now(),
       tournamentEndingDate:
           parseDate(json['tournamentEndingDate']) ?? DateTime.now(),
-      // Handle both legacy String and new TournamentSegment object formats
-      currentSegment: json['currentSegment'] != null
-          ? (json['currentSegment'] is String
-              ? TournamentSegment(
-                  segmentName: json['currentSegment'],
-                  segmentID: 0,
-                )
-              : TournamentSegment.fromJson(json['currentSegment']))
-          : null,
       currentSegmentIndex: json['currentSegmentIndex'] ?? -1,
       numberOfTeamsInTournament: json['numberOfTeamsInTournament'] ?? 0,
       maxTeams: json['maxTeams'],
@@ -275,9 +411,6 @@ class Tournament {
           .toList(),
       autoQualifiedTeams: (json['autoQualifiedTeams'] as List?)
           ?.map((teamJson) => DebateTeam.fromJson(teamJson))
-          .toList(),
-      currentMatches: (json['currentMatches'] as List?)
-          ?.map((matchJson) => DebateMatch.fromJson(matchJson))
           .toList(),
       tournamentSegments: (json['tournamentSegments'] as List?)
           ?.map((segmentJson) => TournamentSegment.fromJson(segmentJson))

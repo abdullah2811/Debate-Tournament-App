@@ -90,8 +90,9 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
     );
 
     setState(() {
-      _teams.add(newTeam);
       widget.currentTournament.addTeam(widget.currentTournament, newTeam);
+      // Refresh _teams reference to reflect the updated list
+      _teams = widget.currentTournament.teamsInTheTournament ?? [];
       _teamNameController.clear();
       _debaterOneController.clear();
       _debaterTwoController.clear();
@@ -232,7 +233,8 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
                 // Use tournament method to remove team
                 widget.currentTournament
                     .removeTeam(widget.currentTournament, team);
-                _teams.removeAt(index);
+                // Refresh _teams reference to reflect the updated list
+                _teams = widget.currentTournament.teamsInTheTournament ?? [];
               });
               Navigator.pop(context);
               _showSnack('Team "$teamName" removed.');
@@ -390,7 +392,8 @@ class _AddTeamsScreenState extends State<AddTeamsScreen> {
               children: [
                 Text(
                   'All Teams (${_teams.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ],
             ),

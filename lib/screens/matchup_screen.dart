@@ -1,6 +1,9 @@
 import 'package:debate_tournament_app/models/debate_match.dart';
 import 'package:debate_tournament_app/models/tournament.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class MatchupScreen extends StatefulWidget {
   final Tournament currentTournament;
@@ -23,8 +26,11 @@ class _MatchupScreenState extends State<MatchupScreen> {
   }
 
   void _generateMatches() {
-    matches =
-        widget.currentTournament.currentSegment?.matchesInThisSegment ?? [];
+    matches = widget
+            .currentTournament
+            .tournamentSegments?[widget.currentTournament.currentSegmentIndex]
+            .matchesInThisSegment ??
+        [];
     setState(() {
       isLoading = false;
     });
@@ -35,7 +41,12 @@ class _MatchupScreenState extends State<MatchupScreen> {
 
   bool get _isFinalSegment {
     final segments = widget.currentTournament.tournamentSegments;
-    final currentSegment = widget.currentTournament.currentSegment;
+    final currentSegment = widget.currentTournament.tournamentSegments !=
+                null &&
+            widget.currentTournament.currentSegmentIndex >= 0
+        ? widget.currentTournament
+            .tournamentSegments![widget.currentTournament.currentSegmentIndex]
+        : null;
     if (segments == null || currentSegment == null) return false;
     return segments.last.segmentID == currentSegment.segmentID;
   }
@@ -106,6 +117,496 @@ class _MatchupScreenState extends State<MatchupScreen> {
     );
   }
 
+  Future<void> _generatePdf() async {
+    final segmentName = widget.currentTournament.tournamentSegments != null &&
+            widget.currentTournament.currentSegmentIndex >= 0
+        ? widget
+            .currentTournament
+            .tournamentSegments![widget.currentTournament.currentSegmentIndex]
+            .segmentName
+        : 'Round';
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Center(
+              child: pw.Text(
+                widget.currentTournament.tournamentName,
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                segmentName,
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue800,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Generated on: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+            pw.Divider(thickness: 1),
+            pw.SizedBox(height: 16),
+
+            // Matchups Table
+            ...matches.asMap().entries.map((entry) {
+              final index = entry.key;
+              final match = entry.value;
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 12),
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Match ${index + 1}',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue800,
+                          ),
+                        ),
+                        pw.Text(
+                          'Venue: ${match.venue ?? 'TBD'}',
+                          style: const pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.grey700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                'Government',
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: PdfColors.blue600,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                match.teamA.teamName,
+                                style: pw.TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              if (match.isCompleted)
+                                pw.Text(
+                                  'Score: ${match.teamAScores.reduce((a, b) => a + b) + match.teamARebuttal}',
+                                  style: const pw.TextStyle(fontSize: 10),
+                                ),
+                            ],
+                          ),
+                        ),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          child: pw.Text(
+                            'VS',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text(
+                                'Opposition',
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: PdfColors.red600,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                              pw.Text(
+                                match.teamB.teamName,
+                                style: pw.TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                                textAlign: pw.TextAlign.right,
+                              ),
+                              if (match.isCompleted)
+                                pw.Text(
+                                  'Score: ${match.teamBScores.reduce((a, b) => a + b) + match.teamBRebuttal}',
+                                  style: const pw.TextStyle(fontSize: 10),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ];
+        },
+      ),
+    );
+
+    // Show print/save dialog
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: '${widget.currentTournament.tournamentName}_$segmentName'
+          .replaceAll(' ', '_'),
+    );
+  }
+
+  Future<void> _generateTeamsRankingPdf() async {
+    final teams = widget.currentTournament.teamsInTheTournament ?? [];
+    if (teams.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No teams found.')),
+      );
+      return;
+    }
+
+    final sortedTeams = List.from(teams)
+      ..sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        }
+        return b.teamScore.compareTo(a.teamScore);
+      });
+
+    final segmentName = widget.currentTournament.tournamentSegments != null &&
+            widget.currentTournament.currentSegmentIndex >= 0
+        ? widget
+            .currentTournament
+            .tournamentSegments![widget.currentTournament.currentSegmentIndex]
+            .segmentName
+        : 'Round';
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            pw.Center(
+              child: pw.Text(
+                widget.currentTournament.tournamentName,
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Team Rankings - After $segmentName',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.purple800,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Generated on: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+            pw.Divider(thickness: 1),
+            pw.SizedBox(height: 16),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey400),
+              columnWidths: {
+                0: const pw.FixedColumnWidth(40),
+                1: const pw.FlexColumnWidth(3),
+                2: const pw.FlexColumnWidth(1),
+                3: const pw.FlexColumnWidth(1),
+                4: const pw.FlexColumnWidth(1.5),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.purple100),
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('#',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Team Name',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Wins',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Losses',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Total Score',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                ...sortedTeams.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final team = entry.value;
+                  final isTopThree = index < 3;
+                  return pw.TableRow(
+                    decoration: isTopThree
+                        ? pw.BoxDecoration(
+                            color: index == 0
+                                ? PdfColors.amber50
+                                : index == 1
+                                    ? PdfColors.grey200
+                                    : PdfColors.orange50,
+                          )
+                        : null,
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('${index + 1}',
+                            style: isTopThree
+                                ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
+                                : null),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(team.teamName,
+                            style: isTopThree
+                                ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
+                                : null),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('${team.teamWins}'),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('${team.teamLosses}'),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(team.teamScore.toStringAsFixed(1)),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: '${widget.currentTournament.tournamentName}_Teams_Ranking'
+          .replaceAll(' ', '_'),
+    );
+  }
+
+  Future<void> _generateDebatersRankingPdf() async {
+    final debaters = widget.currentTournament.debatersInTheTournament ?? [];
+    if (debaters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No debaters found.')),
+      );
+      return;
+    }
+
+    final sortedDebaters = List.from(debaters)
+      ..sort((a, b) => b.individualScore.compareTo(a.individualScore));
+
+    final segmentName = widget.currentTournament.tournamentSegments != null &&
+            widget.currentTournament.currentSegmentIndex >= 0
+        ? widget
+            .currentTournament
+            .tournamentSegments![widget.currentTournament.currentSegmentIndex]
+            .segmentName
+        : 'Round';
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            pw.Center(
+              child: pw.Text(
+                widget.currentTournament.tournamentName,
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Debater Rankings - After $segmentName',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.teal800,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Generated on: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+            pw.Divider(thickness: 1),
+            pw.SizedBox(height: 16),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey400),
+              columnWidths: {
+                0: const pw.FixedColumnWidth(40),
+                1: const pw.FlexColumnWidth(2),
+                2: const pw.FlexColumnWidth(2),
+                3: const pw.FlexColumnWidth(1.5),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.teal100),
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('#',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Debater Name',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Team',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Total Score',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                ...sortedDebaters.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final debater = entry.value;
+                  final isTopThree = index < 3;
+                  return pw.TableRow(
+                    decoration: isTopThree
+                        ? pw.BoxDecoration(
+                            color: index == 0
+                                ? PdfColors.amber50
+                                : index == 1
+                                    ? PdfColors.grey200
+                                    : PdfColors.orange50,
+                          )
+                        : null,
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('${index + 1}',
+                            style: isTopThree
+                                ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
+                                : null),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(debater.name,
+                            style: isTopThree
+                                ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
+                                : null),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          debater.teamName.isEmpty ? '-' : debater.teamName,
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child:
+                            pw.Text(debater.individualScore.toStringAsFixed(1)),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: '${widget.currentTournament.tournamentName}_Debaters_Ranking'
+          .replaceAll(' ', '_'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -117,11 +618,16 @@ class _MatchupScreenState extends State<MatchupScreen> {
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
           title: Text(
-              'Matchups - ${widget.currentTournament.currentSegment?.segmentName ?? 'Round'}'),
+              'Matchups - ${widget.currentTournament.tournamentSegments?[widget.currentTournament.currentSegmentIndex].segmentName ?? 'Round'}'),
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
           elevation: 0,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Download PDF',
+              onPressed: _generatePdf,
+            ),
             IconButton(
               icon: const Icon(Icons.leaderboard),
               tooltip: 'Show Leaderboard',
@@ -150,6 +656,43 @@ class _MatchupScreenState extends State<MatchupScreen> {
                           },
                         ),
                       ),
+                      if (_allMatchesCompleted)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _generateTeamsRankingPdf,
+                                  icon: const Icon(Icons.groups, size: 18),
+                                  label: const Text('Teams PDF'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.purple,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _generateDebatersRankingPdf,
+                                  icon: const Icon(Icons.person, size: 18),
+                                  label: const Text('Debaters PDF'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.teal,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       if (_allMatchesCompleted)
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -494,7 +1037,12 @@ class _MatchupScreenState extends State<MatchupScreen> {
                 }
 
                 // Save updated matches to the segment and tournamentSegments
-                final segment = widget.currentTournament.currentSegment;
+                final segment =
+                    widget.currentTournament.tournamentSegments != null &&
+                            widget.currentTournament.currentSegmentIndex >= 0
+                        ? widget.currentTournament.tournamentSegments![
+                            widget.currentTournament.currentSegmentIndex]
+                        : null;
                 if (segment != null) {
                   segment.matchesInThisSegment = [];
                   segment.addMatchesToSegment(matches, segment);

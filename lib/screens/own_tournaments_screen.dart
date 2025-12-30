@@ -41,7 +41,10 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     final query = _searchController.text.trim().toLowerCase();
     final results = _filteredTournaments.where((t) {
       if (query.isEmpty) return true;
-      final segment = t.currentSegment.toString().toLowerCase();
+      final segment = t.tournamentSegments?[t.currentSegmentIndex]
+              .toString()
+              .toLowerCase() ??
+          '';
       return t.tournamentName.toLowerCase().contains(query) ||
           t.tournamentClubName.toLowerCase().contains(query) ||
           segment.contains(query);
@@ -186,7 +189,11 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
       status = 'Active';
     }
 
-    final matchesCount = tournament.currentMatches?.length ?? 0;
+    final matchesCount = tournament
+            .tournamentSegments?[tournament.currentSegmentIndex]
+            .matchesInThisSegment
+            ?.length ??
+        0;
     final additionClosed = tournament.teamAdditionClosed;
 
     return Card(
@@ -312,7 +319,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   Icon(Icons.timeline, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    'Segment: ${tournament.currentSegment?.segmentName ?? 'Registration'}',
+                    'Segment: ${tournament.tournamentSegments?[tournament.currentSegmentIndex].segmentName ?? 'Registration'}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -338,8 +345,10 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   if (tournament.isClosed == false)
                     TextButton.icon(
@@ -379,7 +388,6 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                           additionClosed ? 'Generate Matchups' : 'Add Teams'),
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
-                  const SizedBox(width: 4),
                   if (tournament.isClosed == false)
                     TextButton.icon(
                       onPressed: () {
@@ -395,14 +403,13 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                       label: const Text('Configure Rounds'),
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
-                  const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const TournamentDetailsScreen(),
-                        ),
+                            builder: (context) => TournamentDetailsScreen(
+                                currentTournament: tournament)),
                       );
                     },
                     icon: const Icon(Icons.arrow_forward, size: 18),

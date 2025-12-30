@@ -29,10 +29,10 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
     'Round 1 Tab',
     'Round 2 Tab',
     'Round 3 Tab',
-    'Pre-Quarter',
-    'Quarter',
-    'Semi',
-    'Final',
+    'Pre-Quarter Final',
+    'Quarter Final',
+    'Semi Final',
+    'Grand Final',
     'Custom',
   ];
 
@@ -53,10 +53,10 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
         'Round 1 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
         'Round 2 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
         'Round 3 Tab': {'teams': all, 'qualified': 0, 'isTabRound': true},
-        'Pre-Quarter': {'teams': 16, 'qualified': 0, 'isTabRound': false},
-        'Quarter': {'teams': 8, 'qualified': 0, 'isTabRound': false},
-        'Semi': {'teams': 4, 'qualified': 0, 'isTabRound': false},
-        'Final': {'teams': 2, 'qualified': 0, 'isTabRound': false},
+        'Pre-Quarter Final': {'teams': 16, 'qualified': 0, 'isTabRound': false},
+        'Quarter Final': {'teams': 8, 'qualified': 0, 'isTabRound': false},
+        'Semi Final': {'teams': 4, 'qualified': 0, 'isTabRound': false},
+        'Grand Final': {'teams': 2, 'qualified': 0, 'isTabRound': false},
       };
 
   @override
@@ -353,7 +353,7 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
 
     try {
       // Set the current segment to the first one if not already set
-      widget.currentTournament.currentSegment ??= _segments.first;
+      widget.currentTournament.currentSegmentIndex = -1;
 
       await widget.currentTournament.updateTournament();
       _showSnack('Roadmap saved successfully.');
