@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:debate_tournament_app/services/match_generator.dart';
 import 'debate_team.dart';
 import 'debate_match.dart';
 import 'debater.dart';

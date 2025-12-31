@@ -5,10 +5,11 @@ import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
 import 'package:debate_tournament_app/screens/search_tournaments_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../models/app.dart';
 import '../models/user.dart' as app_user;
 import 'profile_screen.dart';
 
-class DashScreen extends StatelessWidget {
+class DashScreen extends StatefulWidget {
   final app_user.User? currentUser;
   final bool isRegistered;
 
@@ -17,6 +18,36 @@ class DashScreen extends StatelessWidget {
     this.currentUser,
     this.isRegistered = true,
   }) : super(key: key);
+
+  @override
+  State<DashScreen> createState() => _DashScreenState();
+}
+
+class _DashScreenState extends State<DashScreen> {
+  App? _appStats;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppStats();
+  }
+
+  Future<void> _fetchAppStats() async {
+    try {
+      final stats = await App.fetchAppStats();
+      setState(() {
+        _appStats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,23 +59,23 @@ class DashScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (isRegistered)
+          if (widget.isRegistered)
             IconButton(
               icon: const Icon(Icons.notifications_outlined),
               onPressed: () {
                 // TODO: Navigate to notifications
               },
             ),
-          if (isRegistered)
+          if (widget.isRegistered)
             IconButton(
               icon: const Icon(Icons.account_circle),
               onPressed: () {
-                if (currentUser != null) {
+                if (widget.currentUser != null) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ProfileScreen(currentUser: currentUser!),
+                          ProfileScreen(currentUser: widget.currentUser!),
                     ),
                   );
                 }
@@ -82,7 +113,7 @@ class DashScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isRegistered ? 'Welcome Back!' : 'Welcome!',
+                      widget.isRegistered ? 'Welcome Back!' : 'Welcome!',
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -91,7 +122,7 @@ class DashScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isRegistered
+                      widget.isRegistered
                           ? 'Manage your debate tournaments'
                           : 'Browse tournaments and debaters',
                       style: TextStyle(
@@ -106,44 +137,101 @@ class DashScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Quick Stats Section (Only for registered users)
-            if (isRegistered)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        icon: Icons.sports,
-                        title: 'Active',
-                        value: '12',
-                        subtitle: 'Tournaments',
-                        color: Colors.green,
-                      ),
+            // App Stats Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'App Statistics',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        icon: Icons.groups,
-                        title: 'Total',
-                        value: '48',
-                        subtitle: 'Teams',
-                        color: Colors.orange,
+                  ),
+                  const SizedBox(height: 12),
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        icon: Icons.person,
-                        title: 'Total',
-                        value: '144',
-                        subtitle: 'Debaters',
-                        color: Colors.purple,
+                    )
+                  else if (_error != null)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Icon(Icons.error_outline,
+                                color: Colors.red[400], size: 48),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Failed to load stats',
+                              style: TextStyle(color: Colors.red[400]),
+                            ),
+                            TextButton(
+                              onPressed: _fetchAppStats,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
                       ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.emoji_events,
+                            title: 'Created',
+                            value: '${_appStats?.tournamentsCreated ?? 0}',
+                            subtitle: 'Tournaments',
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.groups,
+                            title: 'Handled',
+                            value: '${_appStats?.teamsHandled ?? 0}',
+                            subtitle: 'Teams',
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  if (!_isLoading && _error == null) const SizedBox(height: 12),
+                  if (!_isLoading && _error == null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.person,
+                            title: 'Handled',
+                            value: '${_appStats?.debatersHandled ?? 0}',
+                            subtitle: 'Debaters',
+                            color: Colors.purple,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.people,
+                            title: 'Registered',
+                            value: '${_appStats?.usersRegistered ?? 0}',
+                            subtitle: 'Users',
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
+            ),
 
             const SizedBox(height: 24),
 
@@ -154,7 +242,7 @@ class DashScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isRegistered ? 'Quick Actions' : 'Browse',
+                    widget.isRegistered ? 'Quick Actions' : 'Browse',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -164,7 +252,7 @@ class DashScreen extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Create Tournament Card (Only for registered users)
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActionCard(
                       context: context,
                       icon: Icons.add_circle,
@@ -182,10 +270,10 @@ class DashScreen extends StatelessWidget {
                       },
                     ),
 
-                  if (isRegistered) const SizedBox(height: 12),
+                  if (widget.isRegistered) const SizedBox(height: 12),
 
                   // Adjudicator Area Card (Only for registered users)
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActionCard(
                       context: context,
                       icon: Icons.gavel,
@@ -202,10 +290,10 @@ class DashScreen extends StatelessWidget {
                       },
                     ),
 
-                  if (isRegistered) const SizedBox(height: 12),
+                  if (widget.isRegistered) const SizedBox(height: 12),
 
                   // Manage Tournaments Card (Only for registered users)
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActionCard(
                       context: context,
                       icon: Icons.edit,
@@ -216,14 +304,14 @@ class DashScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                OwnTournamentsScreen(currentUser: currentUser!),
+                            builder: (context) => OwnTournamentsScreen(
+                                currentUser: widget.currentUser!),
                           ),
                         );
                       },
                     ),
 
-                  if (isRegistered) const SizedBox(height: 12),
+                  if (widget.isRegistered) const SizedBox(height: 12),
 
                   // Search Tournaments Card
                   _buildActionCard(
@@ -264,7 +352,7 @@ class DashScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Recent Activity Section (Only for registered users)
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     const Text(
                       'Recent Activity',
                       style: TextStyle(
@@ -274,9 +362,9 @@ class DashScreen extends StatelessWidget {
                       ),
                     ),
 
-                  if (isRegistered) const SizedBox(height: 16),
+                  if (widget.isRegistered) const SizedBox(height: 16),
 
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActivityCard(
                       icon: Icons.sports,
                       title: 'Inter-University Debate 2025',
@@ -285,9 +373,9 @@ class DashScreen extends StatelessWidget {
                       color: Colors.blue,
                     ),
 
-                  if (isRegistered) const SizedBox(height: 12),
+                  if (widget.isRegistered) const SizedBox(height: 12),
 
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActivityCard(
                       icon: Icons.groups,
                       title: 'New team registered',
@@ -296,9 +384,9 @@ class DashScreen extends StatelessWidget {
                       color: Colors.green,
                     ),
 
-                  if (isRegistered) const SizedBox(height: 12),
+                  if (widget.isRegistered) const SizedBox(height: 12),
 
-                  if (isRegistered)
+                  if (widget.isRegistered)
                     _buildActivityCard(
                       icon: Icons.emoji_events,
                       title: 'Tournament completed',
@@ -307,7 +395,7 @@ class DashScreen extends StatelessWidget {
                       color: Colors.orange,
                     ),
 
-                  if (isRegistered) const SizedBox(height: 24),
+                  if (widget.isRegistered) const SizedBox(height: 24),
                 ],
               ),
             ),

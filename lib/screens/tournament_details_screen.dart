@@ -487,8 +487,7 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                     tournament.currentSegmentIndex >= 0 &&
                     tournament.currentSegmentIndex <
                         tournament.tournamentSegments!.length)
-                ? tournament
-                    .tournamentSegments![tournament.currentSegmentIndex]
+                ? tournament.tournamentSegments![tournament.currentSegmentIndex]
                     .segmentName
                 : 'Registration',
             color: Colors.green,
@@ -1208,7 +1207,7 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
               ),
               child: Center(
                 child: index < 3
-                    ? Icon(
+                    ? const Icon(
                         Icons.emoji_events,
                         color: Colors.white,
                         size: 24,

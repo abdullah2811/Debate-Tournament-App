@@ -35,13 +35,20 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
           .orderBy('createdAt', descending: true)
           .get();
 
+      // Only load tournaments where currentSegmentIndex == -1 OR isClosed == true
+      // Exclude running tournaments (currentSegmentIndex >= 0 AND isClosed == false)
       final tournaments = querySnapshot.docs
           .map((doc) => Tournament.fromJson(doc.data()))
-          .toList();
+          .where((tournament) {
+        final isUpcoming =
+            tournament.currentSegmentIndex == -1 && !tournament.isClosed;
+        final isCompleted = tournament.isClosed;
+        return isUpcoming || isCompleted;
+      }).toList();
 
       setState(() {
         _allTournaments = tournaments;
-        _filteredTournaments = tournaments;
+        _applyFilters();
         _isLoading = false;
       });
     } catch (e) {
@@ -57,6 +64,51 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
         );
       }
     }
+  }
+
+  String _getTournamentStatus(Tournament tournament) {
+    // Determine status based on currentSegmentIndex and isClosed
+    if (tournament.isClosed) {
+      return 'Completed';
+    } else if (tournament.currentSegmentIndex == -1) {
+      return 'Upcoming';
+    } else {
+      return 'Active';
+    }
+  }
+
+  void _applyFilters() {
+    final query = _searchController.text.trim().toLowerCase();
+
+    _filteredTournaments = _allTournaments.where((tournament) {
+      // Apply status filter
+      final status = _getTournamentStatus(tournament);
+      bool matchesFilter = true;
+
+      if (_selectedFilter == 'Completed') {
+        matchesFilter = status == 'Completed';
+      } else if (_selectedFilter == 'Upcoming') {
+        matchesFilter = status == 'Upcoming';
+      } else if (_selectedFilter == '2025') {
+        matchesFilter = tournament.tournamentStartingDate.year == 2025;
+      } else if (_selectedFilter == '2026') {
+        matchesFilter = tournament.tournamentStartingDate.year == 2026;
+      }
+      // 'All' shows everything
+
+      if (!matchesFilter) return false;
+
+      // Apply search query
+      if (query.isNotEmpty) {
+        return tournament.tournamentName.toLowerCase().contains(query) ||
+            tournament.tournamentClubName.toLowerCase().contains(query) ||
+            (tournament.tournamentLocation?.toLowerCase().contains(query) ??
+                false) ||
+            tournament.tournamentStartingDate.year.toString().contains(query);
+      }
+
+      return true;
+    }).toList();
   }
 
   @override
@@ -130,7 +182,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                       ),
                       onChanged: (value) {
                         setState(() {
-                          // TODO: Implement search logic
+                          _applyFilters();
                         });
                       },
                     ),
@@ -147,15 +199,13 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                     children: [
                       _buildFilterChip('All'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Active'),
+                      _buildFilterChip('Upcoming'),
                       const SizedBox(width: 8),
                       _buildFilterChip('Completed'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Upcoming'),
+                      _buildFilterChip('2026'),
                       const SizedBox(width: 8),
                       _buildFilterChip('2025'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('2024'),
                     ],
                   ),
                 ),
@@ -251,7 +301,7 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
       onSelected: (selected) {
         setState(() {
           _selectedFilter = label;
-          // TODO: Implement filter logic
+          _applyFilters();
         });
       },
       backgroundColor: Colors.blue.shade600,
@@ -268,22 +318,18 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
   }
 
   Widget _buildTournamentCard({required Tournament tournament}) {
-    // Determine status based on dates
-    final now = DateTime.now();
-    String status;
+    // Determine status based on currentSegmentIndex and isClosed
+    final status = _getTournamentStatus(tournament);
     Color statusColor;
     Color statusBgColor;
 
-    if (now.isBefore(tournament.tournamentStartingDate)) {
-      status = 'Upcoming';
+    if (status == 'Upcoming') {
       statusColor = Colors.orange;
       statusBgColor = Colors.orange.shade50;
-    } else if (now.isAfter(tournament.tournamentEndingDate)) {
-      status = 'Completed';
+    } else if (status == 'Completed') {
       statusColor = Colors.grey;
       statusBgColor = Colors.grey.shade200;
     } else {
-      status = 'Active';
       statusColor = Colors.green;
       statusBgColor = Colors.green.shade50;
     }

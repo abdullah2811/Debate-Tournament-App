@@ -41,13 +41,22 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     final query = _searchController.text.trim().toLowerCase();
     final results = _filteredTournaments.where((t) {
       if (query.isEmpty) return true;
-      final segment = t.tournamentSegments?[t.currentSegmentIndex]
-              .toString()
-              .toLowerCase() ??
-          '';
+
+      // Get current segment name safely (currentSegmentIndex could be -1)
+      String segmentName = '';
+      if (t.currentSegmentIndex >= 0 &&
+          t.tournamentSegments != null &&
+          t.currentSegmentIndex < t.tournamentSegments!.length) {
+        segmentName = t.tournamentSegments![t.currentSegmentIndex].segmentName
+            .toLowerCase();
+      }
+
+      // Search in tournament name, club name, segment name, and location
       return t.tournamentName.toLowerCase().contains(query) ||
           t.tournamentClubName.toLowerCase().contains(query) ||
-          segment.contains(query);
+          segmentName.contains(query) ||
+          (t.tournamentLocation?.toLowerCase().contains(query) ?? false) ||
+          (t.tournamentDescription?.toLowerCase().contains(query) ?? false);
     }).toList();
 
     return Scaffold(
@@ -174,6 +183,19 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     }
   }
 
+  String _getCurrentSegmentName(Tournament tournament) {
+    if (tournament.currentSegmentIndex < 0) {
+      return 'Registration';
+    }
+    if (tournament.tournamentSegments == null ||
+        tournament.currentSegmentIndex >=
+            tournament.tournamentSegments!.length) {
+      return 'Unknown';
+    }
+    return tournament
+        .tournamentSegments![tournament.currentSegmentIndex].segmentName;
+  }
+
   Widget _buildTournamentCard(Tournament tournament) {
     final now = DateTime.now();
     final isUpcoming = now.isBefore(tournament.tournamentStartingDate);
@@ -189,11 +211,18 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
       status = 'Active';
     }
 
-    final matchesCount = tournament
-            .tournamentSegments?[tournament.currentSegmentIndex]
-            .matchesInThisSegment
-            ?.length ??
-        0;
+    // Safely get matches count (currentSegmentIndex could be -1)
+    int matchesCount = 0;
+    if (tournament.currentSegmentIndex >= 0 &&
+        tournament.tournamentSegments != null &&
+        tournament.currentSegmentIndex <
+            tournament.tournamentSegments!.length) {
+      matchesCount = tournament
+              .tournamentSegments![tournament.currentSegmentIndex]
+              .matchesInThisSegment
+              ?.length ??
+          0;
+    }
     final additionClosed = tournament.teamAdditionClosed;
 
     return Card(
@@ -319,7 +348,7 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   Icon(Icons.timeline, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    'Segment: ${tournament.tournamentSegments?[tournament.currentSegmentIndex].segmentName ?? 'Registration'}',
+                    'Segment: ${_getCurrentSegmentName(tournament)}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],
