@@ -303,6 +303,17 @@ class Tournament {
       match.venue = v;
       v++;
     }
+    for (var match in matches) {
+      if (match.teamB.teamPlayedGovernment == roundIndex ||
+          match.teamB.teamPlayedGovernment == 0) {
+        // Swap sides
+        DebateTeam temp = match.teamA;
+        match.teamA = match.teamB;
+        match.teamB = temp;
+      }
+      match.venue = v;
+      v++;
+    }
 
     (List<DebateMatch>, List<DebateTeam>) result = (matches, disqualifiedTeams);
 

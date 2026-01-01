@@ -3,6 +3,7 @@ import 'package:debate_tournament_app/screens/create_a_tournament_screen.dart';
 import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
 import 'package:debate_tournament_app/screens/search_tournaments_screen.dart';
+import 'package:debate_tournament_app/screens/timer_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../models/app.dart';
@@ -309,6 +310,44 @@ class _DashScreenState extends State<DashScreen> {
                           ),
                         );
                       },
+                    ),
+
+                  if (widget.isRegistered) const SizedBox(height: 12),
+
+                  // Time Keeping Button (Only for registered users)
+                  if (widget.isRegistered)
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TimerScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.timer),
+                          SizedBox(width: 8),
+                          Text(
+                            'Time Keeping',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
                   if (widget.isRegistered) const SizedBox(height: 12),

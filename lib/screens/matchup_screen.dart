@@ -51,6 +51,132 @@ class _MatchupScreenState extends State<MatchupScreen> {
     return segments.last.segmentID == currentSegment.segmentID;
   }
 
+  bool get _isNextSegmentTabRound {
+    final segments = widget.currentTournament.tournamentSegments;
+    if (segments == null || _isFinalSegment) return false;
+    final nextSegmentIndex = widget.currentTournament.currentSegmentIndex + 1;
+    if (nextSegmentIndex >= segments.length) return false;
+    return segments[nextSegmentIndex].isTabRound;
+  }
+
+  void _showEliminateTeamDialog() {
+    final teams = widget.currentTournament.teamsInTheTournament ?? [];
+    if (teams.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No teams available to eliminate.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text('Eliminate a Team'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: teams.length,
+            itemBuilder: (context, index) {
+              final team = teams[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  title: Text(
+                    team.teamName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Wins: ${team.teamWins} | Score: ${team.teamScore.toStringAsFixed(1)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.remove_circle, color: Colors.red),
+                    tooltip: 'Eliminate Team',
+                    onPressed: () => _confirmEliminateTeam(dialogContext, team),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmEliminateTeam(BuildContext dialogContext, dynamic team) {
+    showDialog(
+      context: dialogContext,
+      builder: (confirmContext) => AlertDialog(
+        title: const Text('Confirm Elimination'),
+        content: Text(
+          'Are you sure you want to eliminate "${team.teamName}" from the tournament?\n\nThis team will not participate in future rounds, but their existing match data will be preserved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(confirmContext); // Close confirmation dialog
+              Navigator.pop(dialogContext); // Close team list dialog
+
+              try {
+                // Remove team from teamsInTheTournament
+                widget.currentTournament.teamsInTheTournament?.removeWhere(
+                  (t) => t.teamID == team.teamID,
+                );
+
+                // Update Firestore
+                await widget.currentTournament.updateTournament();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '"${team.teamName}" has been eliminated from the tournament.',
+                      ),
+                    ),
+                  );
+                  setState(() {});
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error eliminating team: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Eliminate'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _proceedToNextRound() async {
     try {
       widget.currentTournament.proceedToNextSegment();
@@ -369,7 +495,8 @@ class _MatchupScreenState extends State<MatchupScreen> {
               },
               children: [
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.purple100),
+                  decoration:
+                      const pw.BoxDecoration(color: PdfColors.purple100),
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
@@ -691,6 +818,32 @@ class _MatchupScreenState extends State<MatchupScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      if (_allMatchesCompleted &&
+                          !_isFinalSegment &&
+                          !_isNextSegmentTabRound)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: _showEliminateTeamDialog,
+                            icon: const Icon(Icons.person_remove),
+                            label: const Text(
+                              'Eliminate a Team',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              minimumSize: const Size(double.infinity, 50),
+                            ),
                           ),
                         ),
                       if (_allMatchesCompleted)
