@@ -5,6 +5,7 @@ import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
 import 'package:debate_tournament_app/screens/search_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/timer_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app.dart';
 import '../models/user.dart' as app_user;
@@ -187,42 +188,33 @@ class _DashScreenState extends State<DashScreen> {
                         Expanded(
                           child: _buildStatCard(
                             icon: Icons.emoji_events,
-                            title: 'Created',
                             value: '${_appStats?.tournamentsCreated ?? 0}',
                             subtitle: 'Tournaments',
                             color: Colors.green,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _buildStatCard(
                             icon: Icons.groups,
-                            title: 'Handled',
                             value: '${_appStats?.teamsHandled ?? 0}',
                             subtitle: 'Teams',
                             color: Colors.orange,
                           ),
                         ),
-                      ],
-                    ),
-                  if (!_isLoading && _error == null) const SizedBox(height: 12),
-                  if (!_isLoading && _error == null)
-                    Row(
-                      children: [
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _buildStatCard(
                             icon: Icons.person,
-                            title: 'Handled',
                             value: '${_appStats?.debatersHandled ?? 0}',
                             subtitle: 'Debaters',
                             color: Colors.purple,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _buildStatCard(
                             icon: Icons.people,
-                            title: 'Registered',
                             value: '${_appStats?.usersRegistered ?? 0}',
                             subtitle: 'Users',
                             color: Colors.blue,
@@ -316,8 +308,13 @@ class _DashScreenState extends State<DashScreen> {
 
                   // Time Keeping Button (Only for registered users)
                   if (widget.isRegistered)
-                    ElevatedButton(
-                      onPressed: () {
+                    _buildActionCard(
+                      context: context,
+                      icon: Icons.timer,
+                      title: 'Time Keeping',
+                      subtitle: 'Smart Stopwatch for Adjudcators',
+                      color: Colors.orange,
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -325,29 +322,6 @@ class _DashScreenState extends State<DashScreen> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.timer),
-                          SizedBox(width: 8),
-                          Text(
-                            'Time Keeping',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
 
                   if (widget.isRegistered) const SizedBox(height: 12),
@@ -358,7 +332,7 @@ class _DashScreenState extends State<DashScreen> {
                     icon: Icons.search,
                     title: 'Search Tournaments',
                     subtitle: 'Browse all available tournaments',
-                    color: Colors.orange,
+                    color: Colors.brown,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -387,54 +361,101 @@ class _DashScreenState extends State<DashScreen> {
                       );
                     },
                   ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
-                  // Recent Activity Section (Only for registered users)
-                  if (widget.isRegistered)
-                    const Text(
-                      'Recent Activity',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+            // Footer Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blue.shade600,
+                              Colors.blue.shade400
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.gavel,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Debate Tournament Manager',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Organize, manage, and track debate tournaments with ease.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
                     ),
-
-                  if (widget.isRegistered) const SizedBox(height: 16),
-
-                  if (widget.isRegistered)
-                    _buildActivityCard(
-                      icon: Icons.sports,
-                      title: 'Inter-University Debate 2025',
-                      subtitle: 'Preliminary Round 2 in progress',
-                      time: '2 hours ago',
-                      color: Colors.blue,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSocialLink(
+                        icon: Icons.facebook,
+                        color: const Color(0xFF1877F2),
+                        url: 'https://www.facebook.com/abdullahiar2811',
+                      ),
+                      const SizedBox(width: 20),
+                      _buildSocialLink(
+                        // TODO: Replace with actual LinkedIn icon
+                        icon: Icons.link,
+                        color: const Color(0xFF0A66C2),
+                        url: 'https://www.linkedin.com/in/abdullahcsembstu2811',
+                        isLinkedIn: true,
+                      ),
+                      const SizedBox(width: 20),
+                      _buildSocialLink(
+                        // TODO: Replace with actual GitHub icon
+                        icon: Icons.gite,
+                        color: const Color(0xFF333333),
+                        url: 'https://github.com/abdullah2811',
+                        isGitHub: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Text(
+                    '© 2026 Debate Tournament App. All rights reserved.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
                     ),
-
-                  if (widget.isRegistered) const SizedBox(height: 12),
-
-                  if (widget.isRegistered)
-                    _buildActivityCard(
-                      icon: Icons.groups,
-                      title: 'New team registered',
-                      subtitle: 'Phoenix Debaters joined tournament',
-                      time: '5 hours ago',
-                      color: Colors.green,
-                    ),
-
-                  if (widget.isRegistered) const SizedBox(height: 12),
-
-                  if (widget.isRegistered)
-                    _buildActivityCard(
-                      icon: Icons.emoji_events,
-                      title: 'Tournament completed',
-                      subtitle: 'National Debate Championship 2025',
-                      time: '1 day ago',
-                      color: Colors.orange,
-                    ),
-
-                  if (widget.isRegistered) const SizedBox(height: 24),
+                  ),
                 ],
               ),
             ),
@@ -446,7 +467,6 @@ class _DashScreenState extends State<DashScreen> {
 
   Widget _buildStatCard({
     required IconData icon,
-    required String title,
     required String value,
     required String subtitle,
     required Color color,
@@ -454,33 +474,88 @@ class _DashScreenState extends State<DashScreen> {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+          ),
         ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialLink({
+    required IconData icon,
+    required Color color,
+    required String url,
+    bool isLinkedIn = false,
+    bool isGitHub = false,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: isLinkedIn
+            ? Icon(Icons.business_center, size: 24, color: color)
+            : isGitHub
+                ? Icon(Icons.code, size: 24, color: color)
+                : Icon(icon, size: 24, color: color),
       ),
     );
   }
@@ -549,73 +624,6 @@ class _DashScreenState extends State<DashScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String time,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

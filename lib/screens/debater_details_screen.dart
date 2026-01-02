@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:debate_tournament_app/models/user.dart';
+import 'package:debate_tournament_app/models/tournament.dart';
+import 'tournament_details_screen.dart';
 import 'dash_screen.dart';
 
 class DebaterDetailsScreen extends StatefulWidget {
-  const DebaterDetailsScreen({Key? key}) : super(key: key);
+  final User user;
+
+  const DebaterDetailsScreen({Key? key, required this.user}) : super(key: key);
 
   @override
   State<DebaterDetailsScreen> createState() => _DebaterDetailsScreenState();
@@ -11,17 +17,63 @@ class DebaterDetailsScreen extends StatefulWidget {
 class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<Tournament> _userTournaments = [];
+  bool _isLoadingTournaments = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _loadUserTournaments();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserTournaments() async {
+    setState(() {
+      _isLoadingTournaments = true;
+    });
+
+    try {
+      // Fetch all tournaments
+      final snapshot =
+          await FirebaseFirestore.instance.collection('tournaments').get();
+      final allTournaments =
+          snapshot.docs.map((doc) => Tournament.fromJson(doc.data())).toList();
+
+      // Filter tournaments where this user is the creator or a co-owner
+      final userTournaments = allTournaments.where((tournament) {
+        final isCreator = tournament.createdByUserID == widget.user.userID;
+        final isCoOwner = tournament.usersRunningTheTournament
+            .any((user) => user.userID == widget.user.userID);
+        return isCreator || isCoOwner;
+      }).toList();
+
+      // Sort by creation date, newest first
+      userTournaments.sort((a, b) {
+        final aDate = a.createdAt ?? a.tournamentStartingDate;
+        final bDate = b.createdAt ?? b.tournamentStartingDate;
+        return bDate.compareTo(aDate);
+      });
+
+      setState(() {
+        _userTournaments = userTournaments;
+        _isLoadingTournaments = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingTournaments = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load tournaments: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -100,9 +152,9 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'John Doe',
-                    style: TextStyle(
+                  Text(
+                    widget.user.name,
+                    style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -110,61 +162,64 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Debater ID: #12345',
+                    'ID: ${widget.user.userID}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.9),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.school,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Computer Science Department',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                  if (widget.user.clubName != null &&
+                      widget.user.clubName!.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.emoji_events,
-                          color: Colors.amber,
+                          Icons.school,
+                          color: Colors.white.withOpacity(0.9),
                           size: 18,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Text(
-                          'Top Performer',
+                          widget.user.clubName!,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withOpacity(0.9),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                  const SizedBox(height: 8),
+                  if (widget.user.memberSince != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Member since ${widget.user.memberSince!.year}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -177,27 +232,29 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    icon: Icons.sports,
-                    value: '28',
-                    label: 'Matches',
+                    icon: Icons.emoji_events,
+                    value: '${_userTournaments.length}',
+                    label: 'Tournaments',
                     color: Colors.blue,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatCard(
-                    icon: Icons.emoji_events,
-                    value: '18',
-                    label: 'Wins',
+                    icon: Icons.check_circle,
+                    value:
+                        '${_userTournaments.where((t) => t.isClosed).length}',
+                    label: 'Completed',
                     color: Colors.green,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatCard(
-                    icon: Icons.star,
-                    value: '892',
-                    label: 'Total Score',
+                    icon: Icons.schedule,
+                    value:
+                        '${_userTournaments.where((t) => !t.isClosed).length}',
+                    label: 'Active',
                     color: Colors.orange,
                   ),
                 ),
@@ -216,9 +273,10 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
               isScrollable: true,
               tabs: const [
                 Tab(text: 'Overview'),
-                Tab(text: 'Teams'),
-                Tab(text: 'Match History'),
-                Tab(text: 'Statistics'),
+                Tab(text: 'Tournaments'),
+                Tab(text: 'Contact'),
+                Tab(text: 'About'),
+                Tab(text: 'Activity'),
               ],
             ),
           ),
@@ -229,9 +287,10 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
               controller: _tabController,
               children: [
                 _buildOverviewTab(),
-                _buildTeamsTab(),
-                _buildMatchHistoryTab(),
-                _buildStatisticsTab(),
+                _buildTournamentsTab(),
+                _buildContactTab(),
+                _buildAboutTab(),
+                _buildActivityTab(),
               ],
             ),
           ),
@@ -323,7 +382,7 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Personal Information',
+            'User Information',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -334,40 +393,66 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
           _buildInfoCard(
             icon: Icons.person,
             title: 'Full Name',
-            value: 'John Michael Doe',
+            value: widget.user.name,
             color: Colors.purple,
           ),
           const SizedBox(height: 12),
           _buildInfoCard(
             icon: Icons.badge,
-            title: 'Debater ID',
-            value: '#12345',
+            title: 'User ID',
+            value: widget.user.userID,
             color: Colors.blue,
           ),
           const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.school,
-            title: 'Department',
-            value: 'Computer Science Department',
-            color: Colors.green,
-          ),
+          if (widget.user.clubName != null && widget.user.clubName!.isNotEmpty)
+            _buildInfoCard(
+              icon: Icons.school,
+              title: 'Club',
+              value: widget.user.clubName!,
+              color: Colors.green,
+            )
+          else
+            _buildInfoCard(
+              icon: Icons.school,
+              title: 'Club',
+              value: 'Not specified',
+              color: Colors.grey,
+            ),
           const SizedBox(height: 12),
           _buildInfoCard(
             icon: Icons.email,
             title: 'Email',
-            value: 'john.doe@university.edu',
+            value: widget.user.email,
             color: Colors.orange,
           ),
-          const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.phone,
-            title: 'Phone',
-            value: '+1 234 567 8900',
-            color: Colors.teal,
-          ),
+          if (widget.user.phoneNumber != null &&
+              widget.user.phoneNumber!.isNotEmpty)
+            Column(
+              children: [
+                const SizedBox(height: 12),
+                _buildInfoCard(
+                  icon: Icons.phone,
+                  title: 'Phone',
+                  value: widget.user.phoneNumber!,
+                  color: Colors.teal,
+                ),
+              ],
+            ),
+          if (widget.user.address != null && widget.user.address!.isNotEmpty)
+            Column(
+              children: [
+                const SizedBox(height: 12),
+                _buildInfoCard(
+                  icon: Icons.location_on,
+                  title: 'Address',
+                  value: widget.user.address!,
+                  color: Colors.cyan,
+                ),
+              ],
+            ),
           const SizedBox(height: 24),
           const Text(
-            'Performance Overview',
+            'Tournament Activity',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -378,349 +463,77 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
           Row(
             children: [
               Expanded(
-                child: _buildPerformanceCard(
-                  title: 'Win Rate',
-                  value: '64.3%',
-                  subtitle: '18 wins out of 28 matches',
-                  color: Colors.green,
-                  icon: Icons.trending_up,
+                child: _buildActivityCard(
+                  title: 'Total Tournaments',
+                  value: '${_userTournaments.length}',
+                  color: Colors.blue,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildPerformanceCard(
-                  title: 'Avg. Score',
-                  value: '31.9',
-                  subtitle: 'Per match average',
-                  color: Colors.blue,
-                  icon: Icons.analytics,
+                child: _buildActivityCard(
+                  title: 'Completed',
+                  value: '${_userTournaments.where((t) => t.isClosed).length}',
+                  color: Colors.green,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.emoji_events,
-            title: 'Total Individual Score',
-            value: '892 points',
-            color: Colors.amber,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoCard(
-            icon: Icons.timeline,
-            title: 'Current Form',
-            value: 'Won 4 of last 5 matches',
-            color: Colors.green,
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Achievements',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildAchievementCard(
-            icon: Icons.emoji_events,
-            title: 'Tournament Champion',
-            subtitle: 'Inter-University Debate 2024',
-            color: Colors.amber,
-          ),
-          const SizedBox(height: 12),
-          _buildAchievementCard(
-            icon: Icons.star,
-            title: 'Best Speaker Award',
-            subtitle: 'National Championship Prelims',
-            color: Colors.orange,
-          ),
-          const SizedBox(height: 12),
-          _buildAchievementCard(
-            icon: Icons.trending_up,
-            title: 'Most Improved',
-            subtitle: 'Spring Tournament 2024',
-            color: Colors.green,
+          Row(
+            children: [
+              Expanded(
+                child: _buildActivityCard(
+                  title: 'Active',
+                  value: '${_userTournaments.where((t) => !t.isClosed).length}',
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActivityCard(
+                  title: 'Member Since',
+                  value: widget.user.memberSince != null
+                      ? '${widget.user.memberSince!.year}'
+                      : 'N/A',
+                  color: Colors.purple,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTeamsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: 3, // TODO: Replace with actual team count
-      itemBuilder: (context, index) {
-        return Card(
-          elevation: 1,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Team ${index + 1} - Phoenix Debaters',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: index == 0 ? Colors.green : Colors.blue,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        index == 0 ? 'Current' : 'Past',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+  Widget _buildTournamentsTab() {
+    return _isLoadingTournaments
+        ? const Center(child: CircularProgressIndicator())
+        : _userTournaments.isEmpty
+            ? const Center(
+                child: Text(
+                  'No tournaments found',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.people, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Teammates: Jane Smith, Mike Brown',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.emoji_events, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Tournament: Inter-University Debate 2025',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildBadge('Wins: ${5 - index}', Colors.green),
-                    const SizedBox(width: 8),
-                    _buildBadge('Losses: ${2 + index}', Colors.red),
-                    const SizedBox(width: 8),
-                    _buildBadge('Score: ${245 - (index * 30)}', Colors.blue),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      // TODO: Navigate to team details
-                    },
-                    icon: const Icon(Icons.arrow_forward, size: 16),
-                    label: const Text('View Team'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16.0),
+                itemCount: _userTournaments.length,
+                itemBuilder: (context, index) {
+                  final tournament = _userTournaments[index];
+                  return _buildTournamentCard(tournament);
+                },
+              );
   }
 
-  Widget _buildMatchHistoryTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: 10, // TODO: Replace with actual match count
-      itemBuilder: (context, index) {
-        bool won = index % 3 != 2; // Mock win/loss pattern
-        return Card(
-          elevation: 1,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Match ${index + 1}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Inter-University Debate 2025',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: won ? Colors.green : Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            won ? Icons.check_circle : Icons.cancel,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            won ? 'Won' : 'Lost',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'My Team',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Phoenix Debaters',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      'VS',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Opponent',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Eagle Speakers',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Individual Score: ${35 - (index % 8)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Jan ${15 - index}, 2025',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatisticsTab() {
+  Widget _buildContactTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Career Statistics',
+            'Contact Information',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -728,70 +541,64 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  _buildStatRow('Total Matches', '28', Icons.sports),
-                  const Divider(height: 24),
-                  _buildStatRow('Wins', '18', Icons.emoji_events),
-                  const Divider(height: 24),
-                  _buildStatRow('Losses', '10', Icons.cancel),
-                  const Divider(height: 24),
-                  _buildStatRow('Win Rate', '64.3%', Icons.percent),
-                  const Divider(height: 24),
-                  _buildStatRow('Total Score', '892', Icons.star),
-                  const Divider(height: 24),
-                  _buildStatRow('Average Score', '31.9', Icons.analytics),
-                  const Divider(height: 24),
-                  _buildStatRow('Highest Score', '45', Icons.arrow_upward),
-                  const Divider(height: 24),
-                  _buildStatRow('Lowest Score', '18', Icons.arrow_downward),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Tournament Performance',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildTournamentStatCard(
-            tournamentName: 'Inter-University Debate 2025',
-            matches: 8,
-            wins: 6,
-            score: 268,
-            color: Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          _buildTournamentStatCard(
-            tournamentName: 'National Championship 2024',
-            matches: 12,
-            wins: 7,
-            score: 398,
-            color: Colors.green,
-          ),
-          const SizedBox(height: 12),
-          _buildTournamentStatCard(
-            tournamentName: 'Regional Debate Cup 2024',
-            matches: 8,
-            wins: 5,
-            score: 226,
+          _buildInfoCard(
+            icon: Icons.email,
+            title: 'Email',
+            value: widget.user.email,
             color: Colors.orange,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          if (widget.user.phoneNumber != null &&
+              widget.user.phoneNumber!.isNotEmpty)
+            _buildInfoCard(
+              icon: Icons.phone,
+              title: 'Phone Number',
+              value: widget.user.phoneNumber!,
+              color: Colors.teal,
+            )
+          else
+            _buildInfoCard(
+              icon: Icons.phone,
+              title: 'Phone Number',
+              value: 'Not provided',
+              color: Colors.grey,
+            ),
+          const SizedBox(height: 12),
+          if (widget.user.address != null && widget.user.address!.isNotEmpty)
+            _buildInfoCard(
+              icon: Icons.location_on,
+              title: 'Address',
+              value: widget.user.address!,
+              color: Colors.cyan,
+            )
+          else
+            _buildInfoCard(
+              icon: Icons.location_on,
+              title: 'Address',
+              value: 'Not provided',
+              color: Colors.grey,
+            ),
+          const SizedBox(height: 12),
+          if (widget.user.clubName != null && widget.user.clubName!.isNotEmpty)
+            _buildInfoCard(
+              icon: Icons.school,
+              title: 'Club/Organization',
+              value: widget.user.clubName!,
+              color: Colors.green,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
-            'Performance Trends',
+            'About This User',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -808,43 +615,93 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const Row(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.trending_up, color: Colors.green, size: 24),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Current Form',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Won 4 of last 5 matches - Excellent!',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
+                      const Text(
+                        'User ID',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        widget.user.userID,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const Divider(height: 24),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFormIndicator(true),
-                      _buildFormIndicator(true),
-                      _buildFormIndicator(false),
-                      _buildFormIndicator(true),
-                      _buildFormIndicator(true),
+                      const Text(
+                        'Full Name',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        widget.user.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Tournaments',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        '${_userTournaments.length}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Member Since',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        widget.user.memberSince != null
+                            ? widget.user.memberSince.toString().split(' ')[0]
+                            : 'N/A',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -852,6 +709,264 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActivityTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent Activity',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_userTournaments.isNotEmpty)
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Recent Tournaments',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._userTournaments.take(3).map((tournament) {
+                      final isActive = !tournament.isClosed;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tournament.tournamentName,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    tournament.tournamentClubName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? Colors.orange.withOpacity(0.1)
+                                    : Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isActive ? 'Active' : 'Completed',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isActive
+                                      ? Colors.orange.shade700
+                                      : Colors.green.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            )
+          else
+            const Center(
+              child: Text(
+                'No tournament activity yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTournamentCard(Tournament tournament) {
+    final isActive = !tournament.isClosed;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tournament.tournamentName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tournament.tournamentClubName,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? Colors.orange.withOpacity(0.1)
+                        : Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isActive ? 'Active' : 'Completed',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isActive
+                          ? Colors.orange.shade700
+                          : Colors.green.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.groups, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  '${tournament.numberOfTeamsInTournament} Teams',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  '${tournament.tournamentStartingDate.year}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TournamentDetailsScreen(
+                          currentTournament: tournament),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.arrow_forward, size: 16),
+                label: const Text('View Details'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityCard({
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

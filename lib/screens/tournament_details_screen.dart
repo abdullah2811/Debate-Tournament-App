@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:debate_tournament_app/models/tournament.dart';
 import 'package:debate_tournament_app/models/debate_team.dart';
 import 'package:debate_tournament_app/models/debater.dart';
 import 'package:debate_tournament_app/models/debate_match.dart';
+import 'package:debate_tournament_app/models/user.dart';
 import 'dash_screen.dart';
+import 'debater_details_screen.dart';
 
 class TournamentDetailsScreen extends StatefulWidget {
   final Tournament currentTournament;
@@ -515,6 +518,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
             value: _getTournamentStatus(),
             color: _getStatusColor(),
           ),
+          const SizedBox(height: 12),
+          _buildTournamentManagersCard(),
           const SizedBox(height: 24),
           const Text(
             'Tournament Segments',
@@ -1408,6 +1413,212 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTournamentManagersCard() {
+    final managers = tournament.usersRunningTheTournament;
+    final creatorId = tournament.createdByUserID;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.indigo,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tournament Managers',
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (managers.isEmpty && creatorId == null)
+              const Text(
+                'No managers assigned',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  // Show creator if available
+                  if (creatorId != null && creatorId.isNotEmpty)
+                    _buildManagerChip(
+                      userId: creatorId,
+                      user: managers
+                          .where((u) => u.userID == creatorId)
+                          .firstOrNull,
+                      isCreator: true,
+                    ),
+                  // Show other managers (excluding creator to avoid duplicates)
+                  ...managers
+                      .where((u) => u.userID != creatorId)
+                      .map((user) => _buildManagerChip(
+                            userId: user.userID,
+                            user: user,
+                            isCreator: false,
+                          )),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManagerChip({
+    required String userId,
+    User? user,
+    required bool isCreator,
+  }) {
+    return InkWell(
+      onTap: () async {
+        if (user != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DebaterDetailsScreen(user: user),
+            ),
+          );
+        } else {
+          // If we only have the userID, we need to fetch the user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loading user $userId...'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .get();
+            if (doc.exists && mounted) {
+              final fetchedUser = User(
+                userID: doc.data()!['userID'] ?? userId,
+                name: doc.data()!['name'] ?? 'Unknown',
+                email: doc.data()!['email'] ?? '',
+                clubName: doc.data()!['clubName'],
+                phoneNumber: doc.data()!['phoneNumber'],
+                address: doc.data()!['address'],
+                memberSince: doc.data()!['memberSince'] != null
+                    ? (doc.data()!['memberSince'] as Timestamp).toDate()
+                    : null,
+              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DebaterDetailsScreen(user: fetchedUser),
+                ),
+              );
+            } else if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('User not found')),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error loading user: $e')),
+              );
+            }
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isCreator
+              ? Colors.indigo.withOpacity(0.1)
+              : Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isCreator
+                ? Colors.indigo.withOpacity(0.3)
+                : Colors.blue.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isCreator ? Icons.star : Icons.person,
+              size: 16,
+              color: isCreator ? Colors.indigo : Colors.blue,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              userId,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isCreator ? Colors.indigo : Colors.blue,
+              ),
+            ),
+            if (isCreator) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.indigo,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Creator',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 12,
+              color: isCreator ? Colors.indigo : Colors.blue,
             ),
           ],
         ),

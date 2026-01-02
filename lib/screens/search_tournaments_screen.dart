@@ -460,6 +460,25 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
 
               const SizedBox(height: 6),
 
+              // Created By
+              Row(
+                children: [
+                  Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      tournament.createdByUserID ?? 'Unknown',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 6),
+
               // Location
               if (tournament.tournamentLocation != null &&
                   tournament.tournamentLocation!.isNotEmpty)

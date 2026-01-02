@@ -151,23 +151,34 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     });
 
     try {
+      // Fetch all tournaments that the user is running
       final snapshot = await FirebaseFirestore.instance
           .collection('tournaments')
-          .where('createdByUserID', isEqualTo: widget.currentUser.userID)
-          // Avoid composite index requirement by ordering client-side.
           .get();
 
-      final tournaments =
-          snapshot.docs.map((doc) => Tournament.fromJson(doc.data())).toList()
-            ..sort((a, b) {
-              final aDate = a.createdAt ?? a.tournamentStartingDate;
-              final bDate = b.createdAt ?? b.tournamentStartingDate;
-              return bDate.compareTo(aDate); // newest first
-            });
+      final allTournaments = snapshot.docs
+          .map((doc) => Tournament.fromJson(doc.data()))
+          .toList();
+
+      // Filter tournaments where the user is either the creator or a co-owner
+      final userTournaments = allTournaments.where((tournament) {
+        final isCreator =
+            tournament.createdByUserID == widget.currentUser.userID;
+        final isCoOwner = tournament.usersRunningTheTournament
+            .any((user) => user.userID == widget.currentUser.userID);
+        return isCreator || isCoOwner;
+      }).toList();
+
+      // Sort by creation date or starting date, newest first
+      userTournaments.sort((a, b) {
+        final aDate = a.createdAt ?? a.tournamentStartingDate;
+        final bDate = b.createdAt ?? b.tournamentStartingDate;
+        return bDate.compareTo(aDate);
+      });
 
       setState(() {
-        _allTournaments = tournaments;
-        _filteredTournaments = tournaments;
+        _allTournaments = userTournaments;
+        _filteredTournaments = userTournaments;
         _isLoading = false;
       });
     } catch (e) {
@@ -379,6 +390,15 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                 spacing: 4,
                 runSpacing: 4,
                 children: [
+                  if (tournament.isClosed == false)
+                    TextButton.icon(
+                      onPressed: () {
+                        _showAddCoOwnerDialog(tournament);
+                      },
+                      icon: const Icon(Icons.person_add, size: 18),
+                      label: const Text('Add Co-Owner'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.green),
+                    ),
                   if (tournament.isClosed == false)
                     TextButton.icon(
                       onPressed: () async {
@@ -706,6 +726,159 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddCoOwnerDialog(Tournament tournament) {
+    final searchController = TextEditingController();
+    List<User> searchResults = [];
+    bool isSearching = false;
+
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setLocalState) {
+          return AlertDialog(
+            title: const Text('Add Co-Owner'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter user ID',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: isSearching
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (value) async {
+                      if (value.trim().isEmpty) {
+                        setLocalState(() {
+                          searchResults = [];
+                        });
+                        return;
+                      }
+
+                      setLocalState(() {
+                        isSearching = true;
+                      });
+
+                      try {
+                        final results =
+                            await User.searchUsersByID(value.trim());
+                        setLocalState(() {
+                          searchResults = results;
+                          isSearching = false;
+                        });
+                      } catch (e) {
+                        setLocalState(() {
+                          isSearching = false;
+                        });
+                        if (mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(content: Text('Error searching users: $e')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (searchResults.isEmpty && searchController.text.isNotEmpty)
+                    const Text(
+                      'No users found',
+                      style: TextStyle(color: Colors.grey),
+                    )
+                  else if (searchResults.isNotEmpty)
+                    SizedBox(
+                      height: 200,
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        itemCount: searchResults.length,
+                        itemBuilder: (context, index) {
+                          final user = searchResults[index];
+                          final isAlreadyOwner = tournament
+                              .usersRunningTheTournament
+                              .any((u) => u.userID == user.userID);
+                          final isCurrentUser =
+                              user.userID == widget.currentUser.userID;
+
+                          return ListTile(
+                            title: Text(user.name),
+                            subtitle: Text(user.userID),
+                            enabled: !isAlreadyOwner && !isCurrentUser,
+                            onTap: isAlreadyOwner || isCurrentUser
+                                ? null
+                                : () async {
+                                    try {
+                                      await tournament.addCoOwner(user);
+                                      if (mounted) {
+                                        Navigator.pop(dialogContext);
+                                        _loadTournaments();
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '${user.name} added as co-owner',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(dialogContext)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content:
+                                                Text('Error: ${e.toString()}'),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            trailing: isAlreadyOwner
+                                ? const Tooltip(
+                                    message: 'Already a co-owner',
+                                    child: Icon(Icons.check, color: Colors.green),
+                                  )
+                                : isCurrentUser
+                                    ? const Tooltip(
+                                        message: 'Current user',
+                                        child: Icon(Icons.person,
+                                            color: Colors.blue),
+                                      )
+                                    : null,
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

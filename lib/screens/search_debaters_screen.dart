@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:debate_tournament_app/models/user.dart';
+import 'debater_details_screen.dart';
 
 class SearchDebatersScreen extends StatefulWidget {
   const SearchDebatersScreen({Key? key}) : super(key: key);
@@ -10,6 +13,15 @@ class SearchDebatersScreen extends StatefulWidget {
 class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
+  List<User> _allUsers = [];
+  List<User> _filteredUsers = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
 
   @override
   void dispose() {
@@ -17,8 +29,46 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
     super.dispose();
   }
 
+  Future<void> _loadUsers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+      final users = snapshot.docs
+          .map((doc) => User.fromJson(doc.data()))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+
+      setState(() {
+        _allUsers = users;
+        _filteredUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load users: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final query = _searchController.text.trim().toLowerCase();
+    final results = _filteredUsers.where((user) {
+      if (query.isEmpty) return true;
+      return user.name.toLowerCase().contains(query) ||
+          user.userID.toLowerCase().contains(query) ||
+          (user.clubName?.toLowerCase().contains(query) ?? false);
+    }).toList();
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -60,7 +110,7 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search by name, club, or year...',
+                        hintText: 'Search by name, user ID, or club...',
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                         suffixIcon: _searchController.text.isNotEmpty
@@ -81,9 +131,7 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
                         ),
                       ),
                       onChanged: (value) {
-                        setState(() {
-                          // TODO: Implement search logic
-                        });
+                        setState(() {});
                       },
                     ),
                   ),
@@ -101,13 +149,7 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
                       const SizedBox(width: 8),
                       _buildFilterChip('Active'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Completed'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Upcoming'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('2025'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('2024'),
+                      _buildFilterChip('Top Debaters'),
                     ],
                   ),
                 ),
@@ -121,7 +163,7 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
             child: Row(
               children: [
                 Text(
-                  '24 Debaters found',
+                  '${results.length} Debaters found',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -143,28 +185,25 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
             ),
           ),
 
-          // Debater List, this will be deleted later
+          // Debater List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 8, // Placeholder count
-              itemBuilder: (context, index) {
-                return _buildDebaterCard(
-                  debaterName: 'Debater ${2025 - index}',
-                  year: '${2025 - index}',
-                  club: 'National Debate Association',
-                  location: 'New York, USA',
-                  segment: index % 2 == 0 ? 'Semi Finals' : 'Quarter Finals',
-                  teamsCount: 32 - (index * 2),
-                  status: index % 3 == 0
-                      ? 'Active'
-                      : index % 3 == 1
-                          ? 'Completed'
-                          : 'Upcoming',
-                  date: 'Dec ${15 + index}, ${2025 - index}',
-                );
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : results.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No debaters found',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: results.length,
+                        itemBuilder: (context, index) {
+                          final user = results[index];
+                          return _buildDebaterCard(user);
+                        },
+                      ),
           ),
         ],
       ),
@@ -178,7 +217,9 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? Colors.white : Colors.white70,
+          color: isSelected
+              ? const Color.fromARGB(255, 182, 52, 52)
+              : Colors.white70,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -202,37 +243,7 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
     );
   }
 
-  Widget _buildDebaterCard({
-    required String debaterName,
-    required String year,
-    required String club,
-    required String location,
-    required String segment,
-    required int teamsCount,
-    required String status,
-    required String date,
-  }) {
-    Color statusColor;
-    Color statusBgColor;
-
-    switch (status) {
-      case 'Active':
-        statusColor = Colors.green;
-        statusBgColor = Colors.green.shade50;
-        break;
-      case 'Completed':
-        statusColor = Colors.grey;
-        statusBgColor = Colors.grey.shade200;
-        break;
-      case 'Upcoming':
-        statusColor = Colors.orange;
-        statusBgColor = Colors.orange.shade50;
-        break;
-      default:
-        statusColor = Colors.blue;
-        statusBgColor = Colors.blue.shade50;
-    }
-
+  Widget _buildDebaterCard(User user) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -241,7 +252,12 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to tournament details
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DebaterDetailsScreen(user: user),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -252,188 +268,147 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
               // Header Row
               Row(
                 children: [
-                  // Status Badge
+                  // Profile Icon
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: statusBgColor,
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.blue.shade700,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
+                        Text(
+                          user.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(height: 4),
                         Text(
-                          status,
+                          'ID: ${user.userID}',
                           style: TextStyle(
-                            color: statusColor,
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Spacer(),
-                  // Year Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      year,
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ],
               ),
-
               const SizedBox(height: 12),
 
-              // Debater Name
-              Text(
-                debaterName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
               // Club Name
-              Row(
-                children: [
-                  Icon(Icons.school, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      club,
+              if (user.clubName != null && user.clubName!.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.school, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        user.clubName!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Icon(Icons.school, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'No club assigned',
                       style: TextStyle(
                         fontSize: 14,
+                        color: Colors.grey[500],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 6),
+
+              // Email
+              if (user.email.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.email, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        user.email,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 6),
+
+              // Phone
+              if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      user.phoneNumber!,
+                      style: TextStyle(
+                        fontSize: 13,
                         color: Colors.grey[700],
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 6),
-
-              // Location
-              Row(
-                children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 6),
-                  Text(
-                    location,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 6),
-
-              // Date
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 6),
-                  Text(
-                    date,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
-
+                  ],
+                ),
               const SizedBox(height: 12),
 
-              // Current Segment & Teams
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.timeline,
-                            size: 14, color: Colors.purple.shade700),
-                        const SizedBox(width: 6),
-                        Text(
-                          segment,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.purple.shade900,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+              // Member Since
+              if (user.memberSince != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.groups,
-                            size: 14, color: Colors.orange.shade700),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$teamsCount Teams',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.orange.shade900,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
-              ),
-
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.calendar_today,
+                          size: 14, color: Colors.green.shade700),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Member since ${user.memberSince!.year}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.green.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 12),
 
               // Action Button
@@ -441,7 +416,12 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: () {
-                    // TODO: View details
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DebaterDetailsScreen(user: user),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.arrow_forward, size: 18),
                   label: const Text('View Details'),

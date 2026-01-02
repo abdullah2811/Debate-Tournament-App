@@ -1,4 +1,3 @@
-import 'package:debate_tournament_app/screens/timer_screen.dart';
 import 'package:flutter/material.dart';
 
 class AdjudicatorScreen extends StatefulWidget {

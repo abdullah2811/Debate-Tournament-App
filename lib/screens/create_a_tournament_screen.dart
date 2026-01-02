@@ -5,9 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:uuid/uuid.dart';
 import '../models/tournament.dart';
 import 'dash_screen.dart';
+import 'package:debate_tournament_app/models/user.dart';
 
 class CreateATournamentScreen extends StatefulWidget {
-  const CreateATournamentScreen({Key? key}) : super(key: key);
+  final User? creatorUser;
+  const CreateATournamentScreen({this.creatorUser, Key? key}) : super(key: key);
 
   @override
   State<CreateATournamentScreen> createState() =>
@@ -168,6 +170,8 @@ class _CreateATournamentScreenState extends State<CreateATournamentScreen> {
       // Save to Firestore
       await tournament.saveTournament();
       await App.incrementTournamentsCreated();
+      // Update the user's tournamentsRunByUser List with the new tournament
+      widget.creatorUser?.updateTournamentsRunByUser(tournament);
 
       if (!mounted) return;
       setState(() {

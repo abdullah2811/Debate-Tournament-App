@@ -3,6 +3,7 @@ import 'debate_team.dart';
 import 'debate_match.dart';
 import 'debater.dart';
 import 'tournament_segment.dart';
+import 'package:debate_tournament_app/models/user.dart';
 
 enum TournamentFormat {
   asianParliamentary,
@@ -34,6 +35,7 @@ class Tournament {
   List<TournamentSegment>? tournamentSegments;
   bool teamAdditionClosed = false;
   bool isClosed = false;
+  List<User> usersRunningTheTournament = [];
 
   Tournament({
     required this.tournamentName,
@@ -56,6 +58,7 @@ class Tournament {
     this.tournamentSegments,
     this.teamAdditionClosed = false,
     this.isClosed = false,
+    this.usersRunningTheTournament = const [],
   });
 
   CollectionReference<Map<String, dynamic>> get _tournamentsCollection =>
@@ -142,6 +145,40 @@ class Tournament {
     autoQualifiedTeams ??= [];
     autoQualifiedTeams!.add(team);
     updateTournament();
+  }
+
+  void addUserRunningTheTournament(User user) {
+    usersRunningTheTournament.add(user);
+    updateTournament();
+  }
+
+  // Add a co-owner to the tournament
+  Future<void> addCoOwner(User user) async {
+    try {
+      // Check if user is already a co-owner
+      final isAlreadyOwner = usersRunningTheTournament
+          .any((u) => u.userID == user.userID);
+      
+      if (isAlreadyOwner) {
+        throw Exception('User is already a co-owner of this tournament');
+      }
+
+      // Add to tournament's users list
+      usersRunningTheTournament.add(user);
+      await updateTournament();
+
+      // Add tournament to user's tournaments list
+      user.tournamentsRunByUser.add(this);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.userID)
+          .update({
+        'tournamentsRunByUser':
+            user.tournamentsRunByUser.map((t) => t.tournamentID).toList(),
+      });
+    } catch (e) {
+      throw Exception('Error adding co-owner: $e');
+    }
   }
 
   void closeTeamAddition() {
@@ -381,6 +418,8 @@ class Tournament {
           tournamentSegments?.map((segment) => segment.toJson()).toList(),
       'teamAdditionClosed': teamAdditionClosed,
       'isClosed': isClosed,
+      'usersRunningTheTournament':
+          usersRunningTheTournament.map((user) => user.userID).toList(),
     };
   }
 
@@ -427,6 +466,10 @@ class Tournament {
           .toList(),
       teamAdditionClosed: json['teamAdditionClosed'] ?? false,
       isClosed: json['isClosed'] ?? false,
+      usersRunningTheTournament: (json['usersRunningTheTournament'] as List)
+          .map((userID) =>
+              User(userID: userID, name: '', email: '', password: ''))
+          .toList(),
     );
   }
 }

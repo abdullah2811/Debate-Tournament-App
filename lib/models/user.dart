@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'tournament.dart';
 
 class User {
   String userID;
@@ -10,6 +11,7 @@ class User {
   String? phoneNumber;
   String? address;
   DateTime? memberSince;
+  List<Tournament> tournamentsRunByUser = [];
 
   User(
       {required this.name,
@@ -19,7 +21,8 @@ class User {
       this.clubName,
       this.phoneNumber,
       this.address,
-      this.memberSince});
+      this.memberSince,
+      this.tournamentsRunByUser = const []});
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       FirebaseFirestore.instance.collection('users');
@@ -88,6 +91,49 @@ class User {
     await _usersCollection.doc(userID).update({'address': newAddress});
   }
 
+  Future<void> updateTournamentsRunByUser(Tournament newTournament) async {
+    tournamentsRunByUser.add(newTournament);
+    await _usersCollection.doc(userID).update({
+      'tournamentsRunByUser':
+          tournamentsRunByUser.map((t) => t.tournamentID).toList(),
+    });
+  }
+
+  // Search for users by userID
+  static Future<List<User>> searchUsersByID(String searchQuery) async {
+    try {
+      if (searchQuery.trim().isEmpty) {
+        return [];
+      }
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userID', isGreaterThanOrEqualTo: searchQuery.toLowerCase())
+          .where('userID', isLessThanOrEqualTo: '${searchQuery.toLowerCase()}\uf8ff')
+          .get();
+
+      return snapshot.docs.map((doc) => User.fromJson(doc.data())).toList();
+    } catch (e) {
+      throw Exception('Error searching users: $e');
+    }
+  }
+
+  // Get a single user by userID
+  static Future<User?> getUserByID(String userID) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userID)
+          .get();
+      if (doc.exists) {
+        return User.fromJson(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Error getting user: $e');
+    }
+  }
+
   // Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
@@ -99,6 +145,8 @@ class User {
       'phoneNumber': phoneNumber,
       'address': address,
       'memberSince': memberSince?.toIso8601String(),
+      'tournamentsRunByUser':
+          tournamentsRunByUser.map((t) => t.tournamentID).toList(),
     };
   }
 
@@ -122,6 +170,7 @@ class User {
       phoneNumber: json['phoneNumber'],
       address: json['address'],
       memberSince: parsedMemberSince,
+      tournamentsRunByUser: [],
     );
   }
 }
