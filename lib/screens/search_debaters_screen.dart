@@ -4,7 +4,10 @@ import 'package:debate_tournament_app/models/user.dart';
 import 'debater_details_screen.dart';
 
 class SearchDebatersScreen extends StatefulWidget {
-  const SearchDebatersScreen({Key? key}) : super(key: key);
+  final bool isGuest;
+
+  const SearchDebatersScreen({Key? key, this.isGuest = false})
+      : super(key: key);
 
   @override
   State<SearchDebatersScreen> createState() => _SearchDebatersScreenState();
@@ -255,7 +258,8 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DebaterDetailsScreen(user: user),
+              builder: (context) =>
+                  DebaterDetailsScreen(user: user, isGuest: widget.isGuest),
             ),
           );
         },
@@ -419,7 +423,8 @@ class _SearchDebatersScreenState extends State<SearchDebatersScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DebaterDetailsScreen(user: user),
+                        builder: (context) => DebaterDetailsScreen(
+                            user: user, isGuest: widget.isGuest),
                       ),
                     );
                   },

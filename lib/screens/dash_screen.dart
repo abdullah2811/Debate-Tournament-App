@@ -4,7 +4,9 @@ import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
 import 'package:debate_tournament_app/screens/search_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/timer_screen.dart';
+import 'package:debate_tournament_app/screens/welcome_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app.dart';
@@ -60,13 +62,57 @@ class _DashScreenState extends State<DashScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: !widget.isRegistered
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WelcomeScreen(),
+                    ),
+                    (route) => false,
+                  );
+                },
+              )
+            : null,
         actions: [
           if (widget.isRegistered)
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: () {
-                // TODO: Navigate to notifications
-              },
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  onPressed: () {
+                    _showNotificationsPanel(context);
+                  },
+                ),
+                if (_appStats != null && _appStats!.notifications.isNotEmpty)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${_appStats!.notifications.length > 9 ? '9+' : _appStats!.notifications.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           if (widget.isRegistered)
             IconButton(
@@ -153,7 +199,7 @@ class _DashScreenState extends State<DashScreen> {
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   if (_isLoading)
                     const Center(
                       child: Padding(
@@ -226,7 +272,7 @@ class _DashScreenState extends State<DashScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 40),
 
             // Main Options Section
             Padding(
@@ -242,7 +288,7 @@ class _DashScreenState extends State<DashScreen> {
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
                   // Create Tournament Card (Only for registered users)
                   if (widget.isRegistered)
@@ -265,25 +311,25 @@ class _DashScreenState extends State<DashScreen> {
 
                   if (widget.isRegistered) const SizedBox(height: 12),
 
-                  // Adjudicator Area Card (Only for registered users)
-                  if (widget.isRegistered)
-                    _buildActionCard(
-                      context: context,
-                      icon: Icons.gavel,
-                      title: 'Adjudicator Area',
-                      subtitle: 'Manage adjudicators and assignments',
-                      color: Colors.red,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AdjudicatorScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                  // // Adjudicator Area Card (Only for registered users)
+                  // if (widget.isRegistered)
+                  //   _buildActionCard(
+                  //     context: context,
+                  //     icon: Icons.gavel,
+                  //     title: 'Adjudicator Area',
+                  //     subtitle: 'Manage adjudicators and assignments',
+                  //     color: Colors.red,
+                  //     onTap: () {
+                  //       Navigator.push(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //           builder: (context) => const AdjudicatorScreen(),
+                  //         ),
+                  //       );
+                  //     },
+                  //   ),
 
-                  if (widget.isRegistered) const SizedBox(height: 12),
+                  // if (widget.isRegistered) const SizedBox(height: 12),
 
                   // Manage Tournaments Card (Only for registered users)
                   if (widget.isRegistered)
@@ -337,7 +383,9 @@ class _DashScreenState extends State<DashScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SearchTournamentsScreen(),
+                          builder: (context) => SearchTournamentsScreen(
+                            isGuest: !widget.isRegistered,
+                          ),
                         ),
                       );
                     },
@@ -356,7 +404,9 @@ class _DashScreenState extends State<DashScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SearchDebatersScreen(),
+                          builder: (context) => SearchDebatersScreen(
+                            isGuest: !widget.isRegistered,
+                          ),
                         ),
                       );
                     },
@@ -365,7 +415,7 @@ class _DashScreenState extends State<DashScreen> {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 70),
 
             // Footer Section
             Container(
@@ -424,25 +474,21 @@ class _DashScreenState extends State<DashScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildSocialLink(
-                        icon: Icons.facebook,
+                        assetPath: 'assets/icons/facebook.svg',
                         color: const Color(0xFF1877F2),
                         url: 'https://www.facebook.com/abdullahiar2811',
                       ),
                       const SizedBox(width: 20),
                       _buildSocialLink(
-                        // TODO: Replace with actual LinkedIn icon
-                        icon: Icons.link,
-                        color: const Color(0xFF0A66C2),
+                        assetPath: 'assets/icons/linkedin.svg',
+                        color: const Color(0xFF1877F2),
                         url: 'https://www.linkedin.com/in/abdullahcsembstu2811',
-                        isLinkedIn: true,
                       ),
                       const SizedBox(width: 20),
                       _buildSocialLink(
-                        // TODO: Replace with actual GitHub icon
-                        icon: Icons.gite,
-                        color: const Color(0xFF333333),
+                        assetPath: 'assets/icons/github.svg',
+                        color: const Color(0xFF1877F2),
                         url: 'https://github.com/abdullah2811',
-                        isGitHub: true,
                       ),
                     ],
                   ),
@@ -459,6 +505,152 @@ class _DashScreenState extends State<DashScreen> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotificationsPanel(BuildContext context) {
+    final notifications = _appStats?.notifications ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.notifications,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${notifications.length} ${notifications.length == 1 ? 'message' : 'messages'}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Notifications list
+            Flexible(
+              child: notifications.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No notifications yet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'You\'ll see notifications here when there are updates.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: notifications.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final notification = notifications[index];
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.campaign,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            notification,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -530,11 +722,9 @@ class _DashScreenState extends State<DashScreen> {
   }
 
   Widget _buildSocialLink({
-    required IconData icon,
+    required String assetPath,
     required Color color,
     required String url,
-    bool isLinkedIn = false,
-    bool isGitHub = false,
   }) {
     return InkWell(
       onTap: () async {
@@ -551,11 +741,12 @@ class _DashScreenState extends State<DashScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
-        child: isLinkedIn
-            ? Icon(Icons.business_center, size: 24, color: color)
-            : isGitHub
-                ? Icon(Icons.code, size: 24, color: color)
-                : Icon(icon, size: 24, color: color),
+        child: SvgPicture.asset(
+          assetPath,
+          width: 24,
+          height: 24,
+          colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        ),
       ),
     );
   }

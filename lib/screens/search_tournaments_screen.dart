@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament.dart';
 
 class SearchTournamentsScreen extends StatefulWidget {
-  const SearchTournamentsScreen({Key? key}) : super(key: key);
+  final bool isGuest;
+
+  const SearchTournamentsScreen({Key? key, this.isGuest = false})
+      : super(key: key);
 
   @override
   State<SearchTournamentsScreen> createState() =>
@@ -589,7 +592,8 @@ class _SearchTournamentsScreenState extends State<SearchTournamentsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => TournamentDetailsScreen(
-                            currentTournament: tournament),
+                            currentTournament: tournament,
+                            isGuest: widget.isGuest),
                       ),
                     );
                   },

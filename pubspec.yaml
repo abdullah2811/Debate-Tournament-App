@@ -23,6 +23,7 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.3
   url_launcher: ^6.3.2
+  flutter_svg: ^2.2.3
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +37,7 @@ flutter:
   assets:
     - assets/sounds/interval_alert.mp3
     - assets/sounds/completion_alert.mp3
+    - assets/icons/
   
   # To add custom fonts:
   # fonts:

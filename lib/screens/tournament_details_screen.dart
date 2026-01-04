@@ -10,8 +10,10 @@ import 'debater_details_screen.dart';
 
 class TournamentDetailsScreen extends StatefulWidget {
   final Tournament currentTournament;
+  final bool isGuest;
 
-  const TournamentDetailsScreen({required this.currentTournament, Key? key})
+  const TournamentDetailsScreen(
+      {required this.currentTournament, this.isGuest = false, Key? key})
       : super(key: key);
 
   @override
@@ -376,8 +378,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (context) => const DashScreen(
-                  currentUser: null,
+                builder: (context) => DashScreen(
+                  isRegistered: !widget.isGuest,
                 ),
               ),
               (route) => false,
@@ -1517,7 +1519,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DebaterDetailsScreen(user: user),
+              builder: (context) =>
+                  DebaterDetailsScreen(user: user, isGuest: widget.isGuest),
             ),
           );
         } else {
@@ -1548,7 +1551,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => DebaterDetailsScreen(user: fetchedUser),
+                  builder: (context) => DebaterDetailsScreen(
+                      user: fetchedUser, isGuest: widget.isGuest),
                 ),
               );
             } else if (mounted) {

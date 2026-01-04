@@ -9,6 +9,7 @@ class App {
   int teamsHandled = 0;
   int debatersHandled = 0;
   int usersRegistered = 0;
+  List<String> notifications = [];
 
   App({
     this.appName = 'DebateTournamentApp',
@@ -19,6 +20,7 @@ class App {
     this.teamsHandled = 0,
     this.debatersHandled = 0,
     this.usersRegistered = 0,
+    this.notifications = const [],
   });
 
   static const String appStatsDocId = 'app_stats';
@@ -37,6 +39,7 @@ class App {
       'teamsHandled': teamsHandled,
       'debatersHandled': debatersHandled,
       'usersRegistered': usersRegistered,
+      'notifications': notifications,
     };
   }
 
@@ -50,7 +53,8 @@ class App {
       ..tournamentsCreated = json['tournamentsCreated'] ?? 0
       ..teamsHandled = json['teamsHandled'] ?? 0
       ..debatersHandled = json['debatersHandled'] ?? 0
-      ..usersRegistered = json['usersRegistered'] ?? 0;
+      ..usersRegistered = json['usersRegistered'] ?? 0
+      ..notifications = List<String>.from(json['notifications'] ?? []);
   }
 
   // Fetch App stats from Firestore

@@ -7,8 +7,11 @@ import 'dash_screen.dart';
 
 class DebaterDetailsScreen extends StatefulWidget {
   final User user;
+  final bool isGuest;
 
-  const DebaterDetailsScreen({Key? key, required this.user}) : super(key: key);
+  const DebaterDetailsScreen(
+      {Key? key, required this.user, this.isGuest = false})
+      : super(key: key);
 
   @override
   State<DebaterDetailsScreen> createState() => _DebaterDetailsScreenState();
@@ -303,7 +306,9 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (context) => const DashScreen(),
+                builder: (context) => DashScreen(
+                  isRegistered: !widget.isGuest,
+                ),
               ),
               (route) => false,
             );
@@ -917,7 +922,8 @@ class _DebaterDetailsScreenState extends State<DebaterDetailsScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => TournamentDetailsScreen(
-                          currentTournament: tournament),
+                          currentTournament: tournament,
+                          isGuest: widget.isGuest),
                     ),
                   );
                 },

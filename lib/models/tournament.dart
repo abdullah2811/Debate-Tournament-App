@@ -156,9 +156,9 @@ class Tournament {
   Future<void> addCoOwner(User user) async {
     try {
       // Check if user is already a co-owner
-      final isAlreadyOwner = usersRunningTheTournament
-          .any((u) => u.userID == user.userID);
-      
+      final isAlreadyOwner =
+          usersRunningTheTournament.any((u) => u.userID == user.userID);
+
       if (isAlreadyOwner) {
         throw Exception('User is already a co-owner of this tournament');
       }
@@ -178,6 +178,46 @@ class Tournament {
       });
     } catch (e) {
       throw Exception('Error adding co-owner: $e');
+    }
+  }
+
+  // Remove a co-owner from the tournament (only creator can do this)
+  Future<void> removeCoOwner(User user, String requestingUserID) async {
+    try {
+      // Only the creator can remove co-owners
+      if (createdByUserID != requestingUserID) {
+        throw Exception('Only the tournament creator can remove co-owners');
+      }
+
+      // Cannot remove the creator
+      if (user.userID == createdByUserID) {
+        throw Exception('Cannot remove the tournament creator');
+      }
+
+      // Check if user is actually a co-owner
+      final isCoOwner =
+          usersRunningTheTournament.any((u) => u.userID == user.userID);
+
+      if (!isCoOwner) {
+        throw Exception('User is not a co-owner of this tournament');
+      }
+
+      // Remove from tournament's users list
+      usersRunningTheTournament.removeWhere((u) => u.userID == user.userID);
+      await updateTournament();
+
+      // Remove tournament from user's tournaments list
+      user.tournamentsRunByUser
+          .removeWhere((t) => t.tournamentID == tournamentID);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.userID)
+          .update({
+        'tournamentsRunByUser':
+            user.tournamentsRunByUser.map((t) => t.tournamentID).toList(),
+      });
+    } catch (e) {
+      throw Exception('Error removing co-owner: $e');
     }
   }
 

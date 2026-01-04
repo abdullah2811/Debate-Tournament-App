@@ -152,13 +152,11 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
 
     try {
       // Fetch all tournaments that the user is running
-      final snapshot = await FirebaseFirestore.instance
-          .collection('tournaments')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection('tournaments').get();
 
-      final allTournaments = snapshot.docs
-          .map((doc) => Tournament.fromJson(doc.data()))
-          .toList();
+      final allTournaments =
+          snapshot.docs.map((doc) => Tournament.fromJson(doc.data())).toList();
 
       // Filter tournaments where the user is either the creator or a co-owner
       final userTournaments = allTournaments.where((tournament) {
@@ -393,11 +391,12 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   if (tournament.isClosed == false)
                     TextButton.icon(
                       onPressed: () {
-                        _showAddCoOwnerDialog(tournament);
+                        _showManageCoOwnersDialog(tournament);
                       },
                       icon: const Icon(Icons.person_add, size: 18),
-                      label: const Text('Add Co-Owner'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.green),
+                      label: const Text('Manage Co-Owners'),
+                      style:
+                          TextButton.styleFrom(foregroundColor: Colors.green),
                     ),
                   if (tournament.isClosed == false)
                     TextButton.icon(
@@ -730,6 +729,251 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     );
   }
 
+  void _showManageCoOwnersDialog(Tournament tournament) {
+    final isCreator = tournament.createdByUserID == widget.currentUser.userID;
+
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setLocalState) {
+          return AlertDialog(
+            title: const Text('Manage Co-Owners'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Current Co-Owners Section
+                    const Text(
+                      'Current Co-Owners',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (tournament.usersRunningTheTournament.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'No co-owners added yet',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount:
+                              tournament.usersRunningTheTournament.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final user =
+                                tournament.usersRunningTheTournament[index];
+                            final isUserCreator =
+                                user.userID == tournament.createdByUserID;
+
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                backgroundColor: isUserCreator
+                                    ? Colors.amber.shade100
+                                    : Colors.blue.shade100,
+                                child: Icon(
+                                  isUserCreator ? Icons.star : Icons.person,
+                                  color: isUserCreator
+                                      ? Colors.amber.shade700
+                                      : Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                user.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Row(
+                                children: [
+                                  Text(
+                                    user.userID,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  if (isUserCreator) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Creator',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              trailing: isCreator && !isUserCreator
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.remove_circle,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Remove co-owner',
+                                      onPressed: () {
+                                        _confirmRemoveCoOwner(
+                                          tournament,
+                                          user,
+                                          dialogContext,
+                                          setLocalState,
+                                        );
+                                      },
+                                    )
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    // Add New Co-Owner Section
+                    const Text(
+                      'Add New Co-Owner',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _showAddCoOwnerDialog(tournament);
+                      },
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Search & Add Co-Owner'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 44),
+                      ),
+                    ),
+                    if (!isCreator) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.orange.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Only the tournament creator can remove co-owners.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmRemoveCoOwner(
+    Tournament tournament,
+    User user,
+    BuildContext dialogContext,
+    void Function(void Function()) setLocalState,
+  ) {
+    showDialog<void>(
+      context: dialogContext,
+      builder: (confirmContext) => AlertDialog(
+        title: const Text('Remove Co-Owner'),
+        content: Text(
+          'Are you sure you want to remove "${user.name}" as a co-owner of this tournament?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(confirmContext);
+              try {
+                await tournament.removeCoOwner(user, widget.currentUser.userID);
+                setLocalState(() {}); // Refresh the dialog
+                _loadTournaments(); // Refresh the list
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${user.name} removed as co-owner'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddCoOwnerDialog(Tournament tournament) {
     final searchController = TextEditingController();
     List<User> searchResults = [];
@@ -793,7 +1037,8 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                         });
                         if (mounted) {
                           ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(content: Text('Error searching users: $e')),
+                            SnackBar(
+                                content: Text('Error searching users: $e')),
                           );
                         }
                       }
@@ -855,7 +1100,8 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                             trailing: isAlreadyOwner
                                 ? const Tooltip(
                                     message: 'Already a co-owner',
-                                    child: Icon(Icons.check, color: Colors.green),
+                                    child:
+                                        Icon(Icons.check, color: Colors.green),
                                   )
                                 : isCurrentUser
                                     ? const Tooltip(
