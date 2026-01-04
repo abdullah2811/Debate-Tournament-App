@@ -1,4 +1,3 @@
-import 'package:debate_tournament_app/screens/adjudicator_screen.dart';
 import 'package:debate_tournament_app/screens/create_a_tournament_screen.dart';
 import 'package:debate_tournament_app/screens/own_tournaments_screen.dart';
 import 'package:debate_tournament_app/screens/search_debaters_screen.dart';
