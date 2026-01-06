@@ -96,6 +96,8 @@ class DebateMatch {
       'teamB': teamB.toJson(),
       'teamAScores': teamAScores,
       'teamBScores': teamBScores,
+      'teamARebuttal': teamARebuttal,
+      'teamBRebuttal': teamBRebuttal,
       'isCompleted': isCompleted,
       'venue': venue,
     };
@@ -108,6 +110,8 @@ class DebateMatch {
       teamB: DebateTeam.fromJson(json['teamB'] ?? {}),
       teamAScores: List<int>.from(json['teamAScores'] ?? [0, 0, 0]),
       teamBScores: List<int>.from(json['teamBScores'] ?? [0, 0, 0]),
+      teamARebuttal: json['teamARebuttal'] ?? 0,
+      teamBRebuttal: json['teamBRebuttal'] ?? 0,
       isCompleted: json['isCompleted'] ?? false,
       venue: json['venue'],
     );

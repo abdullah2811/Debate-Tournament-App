@@ -196,6 +196,9 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
     if (tournament.currentSegmentIndex < 0) {
       return 'Registration';
     }
+    if (tournament.isClosed) {
+      return 'Tournament Closed';
+    }
     if (tournament.tournamentSegments == null ||
         tournament.currentSegmentIndex >=
             tournament.tournamentSegments!.length) {

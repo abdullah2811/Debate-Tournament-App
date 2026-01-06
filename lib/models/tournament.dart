@@ -256,7 +256,6 @@ class Tournament {
         ? segment.numberOfTeamsInSegment
         : teams.length;
     int start = 0, end = teamsCount - 1;
-    int v = 1; //Venue number
 
     // Manage the auto-qualified teams
     start = auto;
@@ -377,8 +376,6 @@ class Tournament {
         match.teamA = match.teamB;
         match.teamB = temp;
       }
-      match.venue = v;
-      v++;
     }
     for (var match in matches) {
       if (match.teamB.teamPlayedGovernment == roundIndex ||
@@ -388,8 +385,13 @@ class Tournament {
         match.teamA = match.teamB;
         match.teamB = temp;
       }
-      match.venue = v;
-      v++;
+    }
+
+    // Assign distinct venue numbers (1 to number of matches)
+    int venueNumber = 1;
+    for (var match in matches) {
+      match.venue = venueNumber;
+      venueNumber++;
     }
 
     (List<DebateMatch>, List<DebateTeam>) result = (matches, disqualifiedTeams);
@@ -506,10 +508,11 @@ class Tournament {
           .toList(),
       teamAdditionClosed: json['teamAdditionClosed'] ?? false,
       isClosed: json['isClosed'] ?? false,
-      usersRunningTheTournament: (json['usersRunningTheTournament'] as List)
-          .map((userID) =>
-              User(userID: userID, name: '', email: '', password: ''))
-          .toList(),
+      usersRunningTheTournament: (json['usersRunningTheTournament'] as List?)
+              ?.map((userID) =>
+                  User(userID: userID, name: '', email: '', password: ''))
+              .toList() ??
+          [],
     );
   }
 }

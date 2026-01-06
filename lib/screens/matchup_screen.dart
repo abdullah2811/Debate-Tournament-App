@@ -952,34 +952,6 @@ class _MatchupScreenState extends State<MatchupScreen> {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    match.teamA.teamName,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.blue,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    match.teamB.teamName,
-                                    textAlign: TextAlign.end,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.red,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       ),
