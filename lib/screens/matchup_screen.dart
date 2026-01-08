@@ -26,11 +26,14 @@ class _MatchupScreenState extends State<MatchupScreen> {
   }
 
   void _generateMatches() {
-    matches = widget
-            .currentTournament
-            .tournamentSegments?[widget.currentTournament.currentSegmentIndex]
-            .matchesInThisSegment ??
-        [];
+    final segments = widget.currentTournament.tournamentSegments;
+    final idx = widget.currentTournament.currentSegmentIndex;
+
+    if (segments != null && idx >= 0 && idx < segments.length) {
+      matches = segments[idx].matchesInThisSegment ?? [];
+    } else {
+      matches = [];
+    }
     setState(() {
       isLoading = false;
     });
@@ -820,9 +823,7 @@ class _MatchupScreenState extends State<MatchupScreen> {
                             ],
                           ),
                         ),
-                      if (_allMatchesCompleted &&
-                          !_isFinalSegment &&
-                          !_isNextSegmentTabRound)
+                      if (_allMatchesCompleted && !_isFinalSegment)
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -990,7 +991,7 @@ class _MatchupScreenState extends State<MatchupScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'A: ${match.teamAScores.join(', ')}',
+                            '${match.teamA.teamName} : ${match.teamAScores.join(', ')}, ${match.teamARebuttal}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.blue,
@@ -998,7 +999,9 @@ class _MatchupScreenState extends State<MatchupScreen> {
                             ),
                           ),
                           Text(
-                            'B: ${match.teamBScores.join(', ')}',
+                            // '${match.teamB.teamName} : ${match.teamBScores.join(', ')}',
+                            // Show the rebuttal score as well
+                            '${match.teamB.teamName} : ${match.teamBScores.join(', ')}, ${match.teamBRebuttal}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.red,
@@ -1040,30 +1043,33 @@ class _MatchupScreenState extends State<MatchupScreen> {
   void _showScoresDialog(DebateMatch match) {
     final isEditing = match.isCompleted;
 
+    String scoreOrDefault(List<int> scores, int i) =>
+        (scores.length > i) ? scores[i].toString() : '0';
+
     final govDeb1 = TextEditingController(
-      text: isEditing ? match.teamAScores[0].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamAScores, 0) : '',
     );
     final govDeb2 = TextEditingController(
-      text: isEditing ? match.teamAScores[1].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamAScores, 1) : '',
     );
     final govDeb3 = TextEditingController(
-      text: isEditing ? match.teamAScores[2].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamAScores, 2) : '',
     );
     final govRebuttal = TextEditingController(
-      text: isEditing ? match.teamARebuttal.toString() : '',
+      text: isEditing ? (match.teamARebuttal).toString() : '',
     );
 
     final oppDeb1 = TextEditingController(
-      text: isEditing ? match.teamBScores[0].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamBScores, 0) : '',
     );
     final oppDeb2 = TextEditingController(
-      text: isEditing ? match.teamBScores[1].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamBScores, 1) : '',
     );
     final oppDeb3 = TextEditingController(
-      text: isEditing ? match.teamBScores[2].toString() : '',
+      text: isEditing ? scoreOrDefault(match.teamBScores, 2) : '',
     );
     final oppRebuttal = TextEditingController(
-      text: isEditing ? match.teamBRebuttal.toString() : '',
+      text: isEditing ? (match.teamBRebuttal).toString() : '',
     );
 
     showDialog<void>(
@@ -1087,11 +1093,23 @@ class _MatchupScreenState extends State<MatchupScreen> {
                   ),
                 ),
               ),
-              _buildScoreField(govDeb1, 'Prime Minister'),
+              _buildScoreField(
+                  govDeb1,
+                  match.teamA.teamMembers.isNotEmpty
+                      ? '${match.teamA.teamMembers[0].name} (PM)'
+                      : 'Prime Minister'),
               const SizedBox(height: 8),
-              _buildScoreField(govDeb2, 'Deputy Prime Minister'),
+              _buildScoreField(
+                  govDeb2,
+                  match.teamA.teamMembers.length > 1
+                      ? '${match.teamA.teamMembers[1].name} (DPM)'
+                      : 'Deputy Prime Minister'),
               const SizedBox(height: 8),
-              _buildScoreField(govDeb3, 'Member of Government'),
+              _buildScoreField(
+                  govDeb3,
+                  match.teamA.teamMembers.length > 2
+                      ? '${match.teamA.teamMembers[2].name} (MG)'
+                      : 'Member of Government'),
               const SizedBox(height: 8),
               _buildScoreField(govRebuttal, 'Rebuttal'),
               const SizedBox(height: 20),
@@ -1108,11 +1126,23 @@ class _MatchupScreenState extends State<MatchupScreen> {
                   ),
                 ),
               ),
-              _buildScoreField(oppDeb1, 'Leader of the Opposition'),
+              _buildScoreField(
+                  oppDeb1,
+                  match.teamB.teamMembers.isNotEmpty
+                      ? '${match.teamB.teamMembers[0].name} (LO)'
+                      : 'Leader of the Opposition'),
               const SizedBox(height: 8),
-              _buildScoreField(oppDeb2, 'Deputy Leader of the Opposition'),
+              _buildScoreField(
+                  oppDeb2,
+                  match.teamB.teamMembers.length > 1
+                      ? '${match.teamB.teamMembers[1].name} (DLO)'
+                      : 'Deputy Leader of the Opposition'),
               const SizedBox(height: 8),
-              _buildScoreField(oppDeb3, 'Member of Opposition'),
+              _buildScoreField(
+                  oppDeb3,
+                  match.teamB.teamMembers.length > 2
+                      ? '${match.teamB.teamMembers[2].name} (MO)'
+                      : 'Member of Opposition'),
               const SizedBox(height: 8),
               _buildScoreField(oppRebuttal, 'Rebuttal'),
             ],
@@ -1252,16 +1282,16 @@ class _MatchupScreenState extends State<MatchupScreen> {
 
       // Update tournament debaters list
       final debaterAId = match.teamA.teamMembers[i].debaterID;
-      final tournamentDebaterA =
-          widget.currentTournament.debatersInTheTournament!.firstWhere(
+      final debatersList =
+          widget.currentTournament.debatersInTheTournament ?? [];
+      final tournamentDebaterA = debatersList.firstWhere(
         (d) => d.debaterID == debaterAId,
         orElse: () => match.teamA.teamMembers[i],
       );
       tournamentDebaterA.increaseIndividualScore(scoreDifA);
 
       final debaterBId = match.teamB.teamMembers[i].debaterID;
-      final tournamentDebaterB =
-          widget.currentTournament.debatersInTheTournament!.firstWhere(
+      final tournamentDebaterB = debatersList.firstWhere(
         (d) => d.debaterID == debaterBId,
         orElse: () => match.teamB.teamMembers[i],
       );
@@ -1276,13 +1306,12 @@ class _MatchupScreenState extends State<MatchupScreen> {
     match.teamB.increaseTeamScore(teamScoreDifB);
 
     // Update tournament teams list
-    final tournamentTeamA =
-        widget.currentTournament.teamsInTheTournament!.firstWhere(
+    final teamsList = widget.currentTournament.teamsInTheTournament ?? [];
+    final tournamentTeamA = teamsList.firstWhere(
       (t) => t.teamID == match.teamA.teamID,
       orElse: () => match.teamA,
     );
-    final tournamentTeamB =
-        widget.currentTournament.teamsInTheTournament!.firstWhere(
+    final tournamentTeamB = teamsList.firstWhere(
       (t) => t.teamID == match.teamB.teamID,
       orElse: () => match.teamB,
     );

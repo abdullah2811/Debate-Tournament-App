@@ -33,9 +33,13 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    // Set selected segment to current segment if available
-    if (tournament.currentSegmentIndex >= 0) {
-      _selectedSegmentIndex = tournament.currentSegmentIndex;
+    // Initialize selected segment index safely
+    final segLen = tournament.tournamentSegments?.length ?? 0;
+    if (segLen > 0) {
+      final idx = tournament.currentSegmentIndex;
+      _selectedSegmentIndex = (idx >= 0 && idx < segLen) ? idx : 0;
+    } else {
+      _selectedSegmentIndex = 0;
     }
   }
 
@@ -738,9 +742,12 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
       );
     }
 
-    final selectedSegment = _selectedSegmentIndex < segments.length
-        ? segments[_selectedSegmentIndex]
-        : segments.first;
+    // Safely select a segment; default to first when index is out of range
+    final selectedIndex =
+        (_selectedSegmentIndex >= 0 && _selectedSegmentIndex < segments.length)
+            ? _selectedSegmentIndex
+            : 0;
+    final selectedSegment = segments[selectedIndex];
     final matches = selectedSegment.matchesInThisSegment ?? [];
 
     return Column(

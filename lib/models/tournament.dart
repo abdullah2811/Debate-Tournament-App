@@ -34,6 +34,7 @@ class Tournament {
   List<DebateTeam>? autoQualifiedTeams;
   List<TournamentSegment>? tournamentSegments;
   bool teamAdditionClosed = false;
+  bool roadmapLocked = false;
   bool isClosed = false;
   List<User> usersRunningTheTournament = [];
 
@@ -58,6 +59,7 @@ class Tournament {
     this.tournamentSegments,
     this.teamAdditionClosed = false,
     this.isClosed = false,
+    this.roadmapLocked = false,
     this.usersRunningTheTournament = const [],
   });
 
@@ -252,18 +254,23 @@ class Tournament {
     List<DebateTeam> disqualifiedTeams = [];
 
     int auto = segment.numberOfTeamsAutoQualifiedForNextRound;
+    // Clamp teamsCount to available teams
     int teamsCount = segment.numberOfTeamsInSegment > 0
-        ? segment.numberOfTeamsInSegment
+        ? (segment.numberOfTeamsInSegment > teams.length
+            ? teams.length
+            : segment.numberOfTeamsInSegment)
         : teams.length;
     int start = 0, end = teamsCount - 1;
 
     // Manage the auto-qualified teams
+    // Clamp auto to available teamsCount
+    if (auto > teamsCount) auto = teamsCount;
     start = auto;
     // Ensure end doesn't exceed actual teams available
     if (end >= teams.length) {
       end = teams.length - 1;
     }
-    //Add first 'auto' teams to the tournamnt's autoQualifiedTeams list
+    // Add first 'auto' teams to the tournament's autoQualifiedTeams list
     for (int i = 0; i < auto; i++) {
       addAutoQualifiedTeam(teams[i]);
     }
@@ -460,6 +467,7 @@ class Tournament {
           tournamentSegments?.map((segment) => segment.toJson()).toList(),
       'teamAdditionClosed': teamAdditionClosed,
       'isClosed': isClosed,
+      'roadmapLocked': roadmapLocked,
       'usersRunningTheTournament':
           usersRunningTheTournament.map((user) => user.userID).toList(),
     };
@@ -508,6 +516,7 @@ class Tournament {
           .toList(),
       teamAdditionClosed: json['teamAdditionClosed'] ?? false,
       isClosed: json['isClosed'] ?? false,
+      roadmapLocked: json['roadmapLocked'] ?? false,
       usersRunningTheTournament: (json['usersRunningTheTournament'] as List?)
               ?.map((userID) =>
                   User(userID: userID, name: '', email: '', password: ''))

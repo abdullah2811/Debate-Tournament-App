@@ -404,8 +404,30 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                   if (tournament.isClosed == false)
                     TextButton.icon(
                       onPressed: () async {
-                        // Refresh tournament before navigation to get latest segments and currentSegment
-                        if (additionClosed) {
+                        // Determine which screen to navigate to based on tournament state
+                        if (!additionClosed) {
+                          // Add Teams
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  AddTeamsScreen(currentTournament: tournament),
+                            ),
+                          );
+                          if (result == true) {
+                            _loadTournaments();
+                          }
+                        } else if (!tournament.roadmapLocked) {
+                          // Configure Rounds
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TournamentRoadmapScreen(
+                                  currentTournament: tournament),
+                            ),
+                          );
+                        } else {
+                          // Generate Matchups
                           final refreshed = await Tournament.getTournament(
                               tournament.tournamentID);
                           if (refreshed != null && mounted) {
@@ -414,44 +436,36 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                           if (tournament.currentSegmentIndex == -1) {
                             tournament.proceedToNextSegment();
                           }
-                        }
 
-                        if (!mounted) return;
+                          if (!mounted) return;
 
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => additionClosed
-                                ? MatchupScreen(currentTournament: tournament)
-                                : AddTeamsScreen(currentTournament: tournament),
-                          ),
-                        );
-                        // Refresh tournaments list if changes were made
-                        if (result == true) {
-                          _loadTournaments();
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  MatchupScreen(currentTournament: tournament),
+                            ),
+                          );
+                          if (result == true) {
+                            _loadTournaments();
+                          }
                         }
                       },
                       icon: Icon(
-                        additionClosed ? Icons.settings : Icons.build,
+                        !additionClosed
+                            ? Icons.build
+                            : !tournament.roadmapLocked
+                                ? Icons.arrow_forward
+                                : Icons.settings,
                         size: 18,
                       ),
                       label: Text(
-                          additionClosed ? 'Generate Matchups' : 'Add Teams'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                    ),
-                  if (tournament.isClosed == false)
-                    TextButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TournamentRoadmapScreen(
-                                currentTournament: tournament),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.arrow_forward, size: 18),
-                      label: const Text('Configure Rounds'),
+                        !additionClosed
+                            ? 'Add Teams'
+                            : !tournament.roadmapLocked
+                                ? 'Configure Rounds'
+                                : 'Generate Matchups',
+                      ),
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
                   TextButton.icon(
