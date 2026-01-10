@@ -5,7 +5,6 @@ import 'package:debate_tournament_app/models/debate_team.dart';
 import 'package:debate_tournament_app/models/debater.dart';
 import 'package:debate_tournament_app/models/debate_match.dart';
 import 'package:debate_tournament_app/models/user.dart';
-import 'dash_screen.dart';
 import 'debater_details_screen.dart';
 
 class TournamentDetailsScreen extends StatefulWidget {
@@ -155,7 +154,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -168,12 +168,12 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                             Text(
                               tournament.tournamentName,
                               style: const TextStyle(
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
@@ -206,11 +206,17 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    tournament
-                                            .tournamentSegments?[
+                                    (tournament.tournamentSegments != null &&
+                                            tournament.currentSegmentIndex >=
+                                                0 &&
+                                            tournament.currentSegmentIndex <
+                                                tournament
+                                                    .tournamentSegments!.length)
+                                        ? tournament
+                                            .tournamentSegments![
                                                 tournament.currentSegmentIndex]
-                                            .segmentName ??
-                                        'Registration',
+                                            .segmentName
+                                        : 'Registration',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
@@ -224,21 +230,21 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                         ),
                       ),
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
                           Icons.emoji_events,
                           color: Colors.white,
-                          size: 32,
+                          size: 26,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   if (tournament.tournamentLocation != null &&
                       tournament.tournamentLocation!.isNotEmpty)
                     Row(
@@ -246,24 +252,24 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                         Icon(
                           Icons.location_on,
                           color: Colors.white.withOpacity(0.9),
-                          size: 18,
+                          size: 16,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             tournament.tournamentLocation!,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.white.withOpacity(0.9),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 16,
-                    runSpacing: 8,
+                    spacing: 12,
+                    runSpacing: 6,
                     children: [
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -271,13 +277,13 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                           Icon(
                             Icons.calendar_today,
                             color: Colors.white.withOpacity(0.9),
-                            size: 18,
+                            size: 14,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             _formatDateRange(),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.white.withOpacity(0.9),
                             ),
                           ),
@@ -289,13 +295,13 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                           Icon(
                             Icons.school,
                             color: Colors.white.withOpacity(0.9),
-                            size: 18,
+                            size: 14,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             tournament.tournamentClubName,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.white.withOpacity(0.9),
                             ),
                           ),
@@ -310,7 +316,8 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
 
           // Statistics Row
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               children: [
                 Expanded(
@@ -375,45 +382,6 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
           ),
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DashScreen(
-                  isRegistered: !widget.isGuest,
-                ),
-              ),
-              (route) => false,
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 2,
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.dashboard),
-              SizedBox(width: 8),
-              Text(
-                'Go to Dashboard',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -424,29 +392,29 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
     required Color color,
   }) {
     return Card(
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               label,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.grey,
               ),
             ),
@@ -1040,47 +1008,170 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
               ],
             ),
             if (isCompleted) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               const Divider(),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    children: [
-                      Text(
-                        'Individual: ${match.teamAScores.join(' + ')}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                  // Government Team Scores
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Text(
-                        'Rebuttal: ${match.teamARebuttal}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Government Scores',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...List.generate(
+                            match.teamAScores.length > 3
+                                ? 3
+                                : match.teamAScores.length,
+                            (i) {
+                              final debaterName =
+                                  match.teamA.teamMembers.length > i
+                                      ? match.teamA.teamMembers[i].name
+                                      : 'Debater ${i + 1}';
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$debaterName',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade800,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${match.teamAScores[i]} pts',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Rebuttal: ${match.teamARebuttal}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                  Column(
-                    children: [
-                      Text(
-                        'Individual: ${match.teamBScores.join(' + ')}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                  const SizedBox(width: 12),
+                  // Opposition Team Scores
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Text(
-                        'Rebuttal: ${match.teamBRebuttal}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Opposition Scores',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...List.generate(
+                            match.teamBScores.length > 3
+                                ? 3
+                                : match.teamBScores.length,
+                            (i) {
+                              final debaterName =
+                                  match.teamB.teamMembers.length > i
+                                      ? match.teamB.teamMembers[i].name
+                                      : 'Debater ${i + 1}';
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$debaterName',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade800,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${match.teamBScores[i]} pts',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Rebuttal: ${match.teamBRebuttal}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
@@ -1293,6 +1384,9 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
         final debater = sortedDebaters[index];
         final isTopThree = index < 3;
 
+        // Get all match scores for this debater
+        final matchScores = _getDebaterMatchScores(debater);
+
         return Card(
           elevation: isTopThree ? 3 : 1,
           margin: const EdgeInsets.only(bottom: 12),
@@ -1306,72 +1400,181 @@ class _TournamentDetailsScreenState extends State<TournamentDetailsScreen>
                       ? Colors.grey.shade100
                       : Colors.orange.shade50)
               : Colors.white,
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: index == 0
-                    ? Colors.amber
-                    : index == 1
-                        ? Colors.grey[400]
-                        : index == 2
-                            ? Colors.brown[300]
-                            : Colors.teal.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: index < 3
-                    ? const Icon(
-                        Icons.emoji_events,
-                        color: Colors.white,
-                        size: 24,
-                      )
-                    : Text(
-                        '${index + 1}',
-                        style: const TextStyle(
-                          fontSize: 16,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: index == 0
+                            ? Colors.amber
+                            : index == 1
+                                ? Colors.grey[400]
+                                : index == 2
+                                    ? Colors.brown[300]
+                                    : Colors.teal.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: index < 3
+                            ? const Icon(
+                                Icons.emoji_events,
+                                color: Colors.white,
+                                size: 24,
+                              )
+                            : Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            debater.name,
+                            style: TextStyle(
+                              fontWeight: isTopThree
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              fontSize: isTopThree ? 16 : 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            debater.teamName.isEmpty
+                                ? 'No Team'
+                                : debater.teamName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${debater.individualScore.toStringAsFixed(0)} pts',
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.teal,
+                          color: Colors.teal.shade900,
+                          fontSize: isTopThree ? 14 : 12,
                         ),
                       ),
-              ),
-            ),
-            title: Text(
-              debater.name,
-              style: TextStyle(
-                fontWeight: isTopThree ? FontWeight.bold : FontWeight.w600,
-                fontSize: isTopThree ? 16 : 14,
-              ),
-            ),
-            subtitle: Text(
-              debater.teamName.isEmpty ? 'No Team' : debater.teamName,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.teal.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${debater.individualScore.toStringAsFixed(0)} pts',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal.shade900,
-                  fontSize: isTopThree ? 14 : 12,
+                    ),
+                  ],
                 ),
-              ),
+                if (matchScores.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Match Scores',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: matchScores.map((scoreInfo) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.teal.shade200),
+                        ),
+                        child: Text(
+                          scoreInfo,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.teal.shade800,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
             ),
           ),
         );
       },
     );
+  }
+
+  /// Returns a list of score strings for each match the debater participated in
+  List<String> _getDebaterMatchScores(Debater debater) {
+    final List<String> scores = [];
+    final segments = tournament.tournamentSegments ?? [];
+
+    for (int segIdx = 0; segIdx < segments.length; segIdx++) {
+      final segment = segments[segIdx];
+      final matches = segment.matchesInThisSegment ?? [];
+
+      for (int matchIdx = 0; matchIdx < matches.length; matchIdx++) {
+        final match = matches[matchIdx];
+        if (!match.isCompleted) continue;
+
+        // Check Team A
+        for (int i = 0;
+            i < match.teamA.teamMembers.length && i < match.teamAScores.length;
+            i++) {
+          if (match.teamA.teamMembers[i].debaterID == debater.debaterID) {
+            final role = i == 0
+                ? 'PM'
+                : i == 1
+                    ? 'DPM'
+                    : 'MG';
+            scores.add(
+                '${segment.segmentName} M${matchIdx + 1} ($role): ${match.teamAScores[i]}');
+            break;
+          }
+        }
+
+        // Check Team B
+        for (int i = 0;
+            i < match.teamB.teamMembers.length && i < match.teamBScores.length;
+            i++) {
+          if (match.teamB.teamMembers[i].debaterID == debater.debaterID) {
+            final role = i == 0
+                ? 'LO'
+                : i == 1
+                    ? 'DLO'
+                    : 'MO';
+            scores.add(
+                '${segment.segmentName} M${matchIdx + 1} ($role): ${match.teamBScores[i]}');
+            break;
+          }
+        }
+      }
+    }
+
+    return scores;
   }
 
   Widget _buildInfoCard({

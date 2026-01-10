@@ -104,12 +104,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Spacer(flex: 2),
+                    const Spacer(flex: 1),
 
                     // Logo/Icon
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -123,49 +123,52 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                       child: const Icon(
                         Icons.sports,
-                        size: 70,
+                        size: 56,
                         color: Colors.blue,
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
                     // Welcome Text
                     const Text(
                       'Welcome to',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.w300,
                         color: Colors.white,
                         letterSpacing: 1.2,
                       ),
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
-                    const Text(
-                      'Debate Tournament',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                    const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Debate Tournament',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
 
                     const Text(
                       'Tab System',
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 26,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         letterSpacing: 0.5,
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     Text(
                       'Manage tournaments with ease',
@@ -238,7 +241,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       onPressed: _continueAsGuest,
                     ),
 
-                    const Spacer(flex: 2),
+                    const Spacer(flex: 1),
 
                     // Footer Text
                     Text(
@@ -249,7 +252,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),

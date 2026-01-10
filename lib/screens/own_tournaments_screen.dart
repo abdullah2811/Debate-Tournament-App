@@ -223,18 +223,6 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
       status = 'Active';
     }
 
-    // Safely get matches count (currentSegmentIndex could be -1)
-    int matchesCount = 0;
-    if (tournament.currentSegmentIndex >= 0 &&
-        tournament.tournamentSegments != null &&
-        tournament.currentSegmentIndex <
-            tournament.tournamentSegments!.length) {
-      matchesCount = tournament
-              .tournamentSegments![tournament.currentSegmentIndex]
-              .matchesInThisSegment
-              ?.length ??
-          0;
-    }
     final additionClosed = tournament.teamAdditionClosed;
 
     return Card(
@@ -377,12 +365,6 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                     label: '${tournament.numberOfTeamsInTournament} Teams',
                     color: Colors.purple,
                   ),
-                  const SizedBox(width: 12),
-                  _buildStatChip(
-                    icon: Icons.sports,
-                    label: '$matchesCount Matches',
-                    color: Colors.orange,
-                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -419,13 +401,16 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                           }
                         } else if (!tournament.roadmapLocked) {
                           // Configure Rounds
-                          Navigator.push(
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => TournamentRoadmapScreen(
                                   currentTournament: tournament),
                             ),
                           );
+                          if (result == true) {
+                            _loadTournaments();
+                          }
                         } else {
                           // Generate Matchups
                           final refreshed = await Tournament.getTournament(
@@ -469,13 +454,16 @@ class _OwnTournamentsScreenState extends State<OwnTournamentsScreen> {
                       style: TextButton.styleFrom(foregroundColor: Colors.blue),
                     ),
                   TextButton.icon(
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (context) => TournamentDetailsScreen(
                                 currentTournament: tournament)),
                       );
+                      if (result == true) {
+                        _loadTournaments();
+                      }
                     },
                     icon: const Icon(Icons.arrow_forward, size: 18),
                     label: const Text('View Details'),

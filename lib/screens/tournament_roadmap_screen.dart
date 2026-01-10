@@ -354,6 +354,8 @@ class _TournamentRoadmapScreenState extends State<TournamentRoadmapScreen> {
     try {
       // Set the current segment to the first one if not already set
       widget.currentTournament.currentSegmentIndex = -1;
+      // Lock the roadmap so it can't be edited anymore
+      widget.currentTournament.roadmapLocked = true;
 
       await widget.currentTournament.updateTournament();
       _showSnack('Roadmap saved successfully.');
