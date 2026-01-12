@@ -1374,9 +1374,17 @@ class _MatchupScreenState extends State<MatchupScreen> {
       return;
     }
 
-    // Sort teams by total score in descending order
+    // Sort teams by total primarily in wins and then in scores
     final sortedTeams = List.from(teams)
-      ..sort((a, b) => b.teamScore.compareTo(a.teamScore));
+      ..sort((a, b) {
+        if (b.teamWins != a.teamWins) {
+          return b.teamWins.compareTo(a.teamWins);
+        } else if (b.teamScore != a.teamScore) {
+          return b.teamScore.compareTo(a.teamScore);
+        } else {
+          return b.teamLosses.compareTo(a.teamLosses);
+        }
+      });
 
     showDialog(
       context: context,
